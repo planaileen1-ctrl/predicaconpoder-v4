@@ -19,7 +19,7 @@ type Cliente = {
   total: number;
   entregado: boolean;
   telefono: string;
-  producto: string;
+  producto: string; // "Bollo solo" / "Bollo combo" / normal
 };
 
 type Contacto = {
@@ -28,6 +28,10 @@ type Contacto = {
 };
 
 type Filtro = "todos" | "entregados" | "pendientes";
+
+// 🔥 Precios fijos del bollo
+const PRECIO_BOLLO_SOLO = 2.25;
+const PRECIO_BOLLO_COMBO = 3.0;
 
 const PRODUCTOS_BASE = [
   "Morocho",
@@ -44,18 +48,21 @@ const PRODUCTOS_BASE = [
 export default function VentasComidaPage() {
   const router = useRouter();
 
+  // ========= ESTADOS GENERALES =========
   const [fecha, setFecha] = useState(new Date().toISOString().substring(0, 10));
   const [inversion, setInversion] = useState<number | string>("");
   const [costoUnitario, setCostoUnitario] = useState<number | string>("");
-
-  // 🟩 Stock manual del día
   const [stockTotal, setStockTotal] = useState<number | string>("");
 
+  // 🔥 Producto del día
   const [producto, setProducto] = useState<string>("Morocho");
   const [productoOtro, setProductoOtro] = useState<string>("");
 
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  // 🔥 Tipo de bollo (solo o combo)
+  const [productoTipoCliente, setProductoTipoCliente] = useState("solo");
 
+  // ========= ESTADOS CLIENTES =========
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [nombre, setNombre] = useState("");
   const [cantidad, setCantidad] = useState<number | string>("");
   const [telefono, setTelefono] = useState("");
@@ -63,16 +70,13 @@ export default function VentasComidaPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [modoEntrega, setModoEntrega] = useState(false);
   const [filtro, setFiltro] = useState<Filtro>("todos");
-
   const [cargando, setCargando] = useState(false);
 
-  // CONTACTOS
+  // ========= CONTACTOS =========
   const [contactos, setContactos] = useState<Contacto[]>([]);
   const [contactoSeleccionado, setContactoSeleccionado] = useState("");
 
-  // ======================
-  // HELPERS
-  // ======================
+  // ========= HELPERS =========
   const normalizarTelefono = (raw: string): string => {
     const digits = (raw || "").replace(/\D/g, "");
     if (!digits) return "";
@@ -88,9 +92,7 @@ export default function VentasComidaPage() {
     return producto;
   };
 
-  // ======================
-  // CARGAR CONTACTOS
-  // ======================
+  // ========= CARGAR CONTACTOS =========
   const cargarContactos = async () => {
     try {
       const ref = collection(db, "contactos_clientes");
@@ -105,9 +107,7 @@ export default function VentasComidaPage() {
     cargarContactos();
   }, []);
 
-  // ======================
-  // IMPORTAR CSV
-  // ======================
+  // ========= IMPORTAR CSV =========
   const handleCSVUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -154,9 +154,7 @@ export default function VentasComidaPage() {
         );
 
         if (idxNombre === -1 || idxTelefono === -1) {
-          alert(
-            "No se encontraron columnas adecuadas para nombre y teléfono.\nAsegúrate de incluir al menos una columna de nombre y teléfono."
-          );
+          alert("El CSV necesita columnas de nombre y teléfono.");
           return;
         }
 
@@ -193,16 +191,13 @@ export default function VentasComidaPage() {
         await cargarContactos();
       } catch (err) {
         console.error("Error importando CSV:", err);
-        alert("Error al importar el CSV.");
       }
     };
 
     reader.readAsText(file);
   };
 
-  // ======================
-  // CARGAR DATOS DEL DÍA
-  // ======================
+  // ========= CARGAR DATOS POR FECHA =========
   useEffect(() => {
     const cargar = async () => {
       setCargando(true);
@@ -221,25 +216,15 @@ export default function VentasComidaPage() {
 
           const rawClientes: any[] = data.clientes ?? [];
 
-          // 🔥 Mapeo corregido para total
-          const mapeados: Cliente[] = rawClientes.map((c: any) => {
-            const cantidad = Number(c.cantidad) || 0;
-
-            const total =
-              c.total !== undefined && c.total !== null && c.total !== ""
-                ? Number(c.total)
-                : cantidad * Number(costoUnitario || 0);
-
-            return {
-              id: c.id,
-              nombre: c.nombre,
-              cantidad,
-              total,
-              entregado: !!c.entregado,
-              telefono: c.telefono ?? "",
-              producto: c.producto ?? getProductoTexto(),
-            };
-          });
+          const mapeados: Cliente[] = rawClientes.map((c: any) => ({
+            id: c.id,
+            nombre: c.nombre,
+            cantidad: Number(c.cantidad) || 0,
+            total: Number(c.total) || 0,
+            entregado: !!c.entregado,
+            telefono: c.telefono ?? "",
+            producto: c.producto ?? getProductoTexto(),
+          }));
 
           setClientes(mapeados);
         } else {
@@ -251,7 +236,7 @@ export default function VentasComidaPage() {
           setClientes([]);
         }
       } catch (err) {
-        console.error("Error al cargar:", err);
+        console.error("Error al cargar fecha:", err);
       } finally {
         setCargando(false);
       }
@@ -259,14 +244,15 @@ export default function VentasComidaPage() {
 
     cargar();
   }, [fecha]);
-
-  // ======================
-  // CÁLCULOS
-  // ======================
+  // ========= CÁLCULOS =========
   const totalVendido = clientes.reduce((acc, c) => acc + Number(c.total), 0);
   const ganancia = totalVendido - (Number(inversion) || 0);
 
-  const comidasVendidas = clientes.reduce((acc, c) => acc + c.cantidad, 0);
+  const comidasVendidas = clientes.reduce(
+    (acc, c) => acc + Number(c.cantidad),
+    0
+  );
+
   const comidasRestantesStock =
     (Number(stockTotal) || 0) - comidasVendidas;
 
@@ -279,9 +265,7 @@ export default function VentasComidaPage() {
     return true;
   });
 
-  // ======================
-  // SELECCIONAR CONTACTO
-  // ======================
+  // ========= SELECCIONAR CONTACTO =========
   const seleccionarContacto = (telefonoValue: string) => {
     setContactoSeleccionado(telefonoValue);
 
@@ -298,26 +282,36 @@ export default function VentasComidaPage() {
     }
   };
 
-  // ======================
-  // AGREGAR / EDITAR CLIENTE
-  // ======================
+  // ========= GUARDAR CLIENTE (CREAR O EDITAR) =========
   const guardarCliente = async () => {
     if (!nombre.trim()) return alert("Ingrese un nombre válido");
     if (!cantidad || Number(cantidad) <= 0)
       return alert("Ingrese una cantidad válida");
-    if (!costoUnitario || Number(costoUnitario) <= 0)
-      return alert("Debe ingresar el costo unitario");
-    if (!telefono.trim())
-      return alert("Ingrese un número válido");
+    if (!telefono.trim()) return alert("Ingrese un número válido");
 
     const cant = Number(cantidad);
-    const total = cant * Number(costoUnitario);
     const telNorm = normalizarTelefono(telefono);
-    const prodTexto = getProductoTexto();
+
+    // 🔥 Determinar precio según tipo de producto
+    let precioFinal = Number(costoUnitario || 0);
+    let textoProducto = getProductoTexto();
+
+    if (producto === "Bollo") {
+      if (productoTipoCliente === "solo") {
+        precioFinal = PRECIO_BOLLO_SOLO;
+        textoProducto = "Bollo solo";
+      } else {
+        precioFinal = PRECIO_BOLLO_COMBO;
+        textoProducto = "Bollo con arroz + cola";
+      }
+    }
+
+    const total = cant * precioFinal;
 
     let nuevos: Cliente[];
 
     if (editId !== null) {
+      // 🔥 Editar cliente existente
       nuevos = clientes.map((c) =>
         c.id === editId
           ? {
@@ -326,12 +320,13 @@ export default function VentasComidaPage() {
               cantidad: cant,
               total,
               telefono: telNorm,
-              producto: prodTexto,
+              producto: textoProducto,
             }
           : c
       );
       setEditId(null);
     } else {
+      // 🔥 Crear cliente nuevo
       nuevos = [
         ...clientes,
         {
@@ -341,13 +336,14 @@ export default function VentasComidaPage() {
           total,
           entregado: false,
           telefono: telNorm,
-          producto: prodTexto,
+          producto: textoProducto,
         },
       ];
     }
 
     setClientes(nuevos);
 
+    // 🔥 Guardar en Firestore
     await setDoc(
       doc(db, "ventas_comida", fecha),
       {
@@ -362,32 +358,38 @@ export default function VentasComidaPage() {
       { merge: true }
     );
 
+    // Guardar contacto
     await setDoc(
       doc(db, "contactos_clientes", telNorm),
       { nombre, telefono: telNorm },
       { merge: true }
     );
 
+    // limpiar formulario
     setNombre("");
     setCantidad("");
     setTelefono("");
     setContactoSeleccionado("");
+    setProductoTipoCliente("solo");
   };
 
-  // ======================
-  // EDITAR CLIENTE
-  // ======================
+  // ========= EDITAR CLIENTE =========
   const editarCliente = (cliente: Cliente) => {
     setEditId(cliente.id);
     setNombre(cliente.nombre);
     setCantidad(cliente.cantidad.toString());
     setTelefono(cliente.telefono);
     setContactoSeleccionado("");
+
+    // 🔥 Detectar tipo de bollo al editar
+    if (cliente.producto.includes("solo")) {
+      setProductoTipoCliente("solo");
+    } else if (cliente.producto.includes("arroz")) {
+      setProductoTipoCliente("combo");
+    }
   };
 
-  // ======================
-  // ELIMINAR CLIENTE
-  // ======================
+  // ========= ELIMINAR CLIENTE =========
   const eliminarCliente = async (id: number) => {
     const nuevos = clientes.filter((c) => c.id !== id);
     setClientes(nuevos);
@@ -399,9 +401,7 @@ export default function VentasComidaPage() {
     );
   };
 
-  // ======================
-  // MARCAR ENTREGADO
-  // ======================
+  // ========= MARCAR ENTREGADO =========
   const toggleEntrega = async (id: number) => {
     const nuevos = clientes.map((c) =>
       c.id === id ? { ...c, entregado: !c.entregado } : c
@@ -416,26 +416,24 @@ export default function VentasComidaPage() {
     );
   };
 
-  // ======================
-  // WHATSAPP
-  // ======================
+  // ========= WHATSAPP =========
   const enviarWhatsApp = (cliente: Cliente) => {
     const tel = normalizarTelefono(cliente.telefono);
-    if (!tel) return alert("Teléfono inválido");
+    if (!tel) return alert("Número inválido");
 
     const fechaBonita = fecha.split("-").reverse().join("/");
+
     const mensaje = encodeURIComponent(
       `Hola ${cliente.nombre}, 👋\n\n` +
-        `Te confirmo tu pedido de ${cliente.cantidad} ${cliente.producto} para el día ${fechaBonita}.\n\n` +
+        `Tu pedido de ${cliente.cantidad} ${cliente.producto} ` +
+        `queda confirmado para el ${fechaBonita}.\n\n` +
         `¡Gracias por tu compra! 🙌`
     );
 
     window.open(`https://wa.me/${tel}?text=${mensaje}`, "_blank");
   };
 
-  // ======================
-  // PDF
-  // ======================
+  // ========= PDF =========
   const generarReportePDF = () => {
     const win = window.open("", "_blank");
     if (!win) return;
@@ -456,13 +454,13 @@ export default function VentasComidaPage() {
   };
 
   const imprimirHoja = () => window.print();
-
   // ======================
   // UI
   // ======================
   return (
     <main className="min-h-screen bg-neutral-950 text-white px-4 py-10 flex justify-center">
       <div className="w-full max-w-6xl">
+
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
           <button
@@ -534,6 +532,7 @@ export default function VentasComidaPage() {
         {/* ==================== MODO ENTREGA ==================== */}
         {modoEntrega ? (
           <div className="bg-neutral-900 p-6 rounded-2xl border border-neutral-800">
+
             <div className="flex justify-between mb-4">
               <h2 className="text-xl font-semibold">Entregas</h2>
               <div className="text-sm text-neutral-400 text-right">
@@ -561,9 +560,7 @@ export default function VentasComidaPage() {
             {/* Lista de entregas */}
             <div className="space-y-3">
               {clientesFiltrados.length === 0 ? (
-                <p className="text-neutral-500">
-                  Aún no hay clientes para este filtro.
-                </p>
+                <p className="text-neutral-500">Aún no hay clientes para este filtro.</p>
               ) : (
                 clientesFiltrados.map((c) => (
                   <div
@@ -666,6 +663,7 @@ export default function VentasComidaPage() {
                   ))}
                 </select>
 
+                {/* SI ES "OTRO" */}
                 {producto === "Otro" && (
                   <>
                     <label className="text-sm">Especificar producto</label>
@@ -686,7 +684,7 @@ export default function VentasComidaPage() {
                   {editId ? "Editar Cliente" : "Registrar Cliente"}
                 </h2>
 
-                {/* Selector de contacto */}
+                {/* SELECT CONTACTO */}
                 <label className="text-sm">Seleccionar contacto</label>
                 <select
                   value={contactoSeleccionado}
@@ -717,7 +715,7 @@ export default function VentasComidaPage() {
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
                   className="w-full p-2 mb-3 bg-neutral-800 border border-neutral-700 rounded-lg"
-                  placeholder="Ej. 0961079919 o +593961079919"
+                  placeholder="Ej. 0961079919"
                 />
 
                 <label className="text-sm">Cantidad</label>
@@ -729,6 +727,25 @@ export default function VentasComidaPage() {
                   placeholder="Ej. 3"
                 />
 
+                {/* 🔥 SI EL PRODUCTO ES BOLLO → MOSTRAR TIPO */}
+                {producto === "Bollo" && (
+                  <div className="mb-4">
+                    <label className="text-sm">Tipo de bollo</label>
+                    <select
+                      value={productoTipoCliente}
+                      onChange={(e) => setProductoTipoCliente(e.target.value)}
+                      className="w-full p-2 mt-1 rounded-lg bg-neutral-800 border border-neutral-700"
+                    >
+                      <option value="solo">
+                        Bollo solo – ${PRECIO_BOLLO_SOLO}
+                      </option>
+                      <option value="combo">
+                        Bollo con arroz + cola – ${PRECIO_BOLLO_COMBO}
+                      </option>
+                    </select>
+                  </div>
+                )}
+
                 <button
                   onClick={guardarCliente}
                   className="w-full py-2 bg-teal-600 hover:bg-teal-500 rounded-lg font-semibold"
@@ -737,7 +754,7 @@ export default function VentasComidaPage() {
                 </button>
               </div>
 
-              {/* RESUMEN */}
+              {/* RESUMEN FINAL */}
               <div className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800">
                 <h2 className="text-xl font-semibold mb-4">Resumen Final</h2>
 
@@ -826,6 +843,7 @@ export default function VentasComidaPage() {
                 </div>
               </div>
 
+              {/* LISTA */}
               {clientesFiltrados.length === 0 ? (
                 <p className="text-neutral-500">No hay clientes.</p>
               ) : (
@@ -840,7 +858,8 @@ export default function VentasComidaPage() {
                           {c.nombre}
                         </p>
                         <p className="text-sm text-neutral-400">
-                          {c.cantidad} {c.producto} – ${c.total.toFixed(2)}
+                          {c.cantidad} {c.producto} – $
+                          {c.total.toFixed(2)}
                         </p>
                         {c.telefono && (
                           <p className="text-xs text-neutral-400">
@@ -855,20 +874,26 @@ export default function VentasComidaPage() {
                       </div>
 
                       <div className="flex flex-col items-end gap-2 text-lg">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => enviarWhatsApp(c)}
-                            className="px-3 py-1 bg-green-600 rounded-lg text-sm"
-                          >
-                            WhatsApp 📲
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => enviarWhatsApp(c)}
+                          className="px-3 py-1 bg-green-600 rounded-lg text-sm"
+                        >
+                          WhatsApp 📲
+                        </button>
+
                         <div className="flex gap-3">
                           <button onClick={() => editarCliente(c)}>✏️</button>
                           <button onClick={() => eliminarCliente(c.id)}>
                             🗑️
                           </button>
                         </div>
+
+                        <input
+                          type="checkbox"
+                          checked={c.entregado}
+                          onChange={() => toggleEntrega(c.id)}
+                          className="w-5 h-5 accent-teal-500"
+                        />
                       </div>
                     </div>
                   ))}
