@@ -222,7 +222,14 @@ export default function FinanzasPage() {
       <h1 className="text-3xl font-bold text-yellow-400 mb-4 text-center">
         Finanzas – Ingresos y Gastos
       </h1>
-
+<div className="mb-4">
+  <button
+    onClick={() => window.location.href = "/dashboard"}
+    className="px-4 py-2 bg-neutral-800 border border-neutral-600 rounded-lg hover:bg-neutral-700 transition text-sm"
+  >
+    ← Regresar al Dashboard
+  </button>
+</div>
       {/* FECHA PRINCIPAL */}
       <label className="font-semibold">Fecha:</label>
       <input
