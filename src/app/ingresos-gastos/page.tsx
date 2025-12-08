@@ -8,7 +8,6 @@ import {
   setDoc,
   collection,
   getDocs,
-  updateDoc,
 } from "firebase/firestore";
 
 export default function FinanzasPage() {
@@ -27,6 +26,7 @@ export default function FinanzasPage() {
   const [montoGasto, setMontoGasto] = useState("");
   const [categoriaGasto, setCategoriaGasto] = useState("");
   const [subcategoriaGasto, setSubcategoriaGasto] = useState("");
+  const [fechaGasto, setFechaGasto] = useState(today); // <<< NUEVA FECHA PARA GASTO
 
   // Categorías dinámicas
   const [categorias, setCategorias] = useState<string[]>([]);
@@ -38,9 +38,7 @@ export default function FinanzasPage() {
   const [totalGlobalIngresos, setTotalGlobalIngresos] = useState(0);
   const [totalGlobalGastos, setTotalGlobalGastos] = useState(0);
 
-  // -----------------------------
   // Helpers
-  // -----------------------------
   const toArray = (data: any) => {
     if (!data) return [];
     if (Array.isArray(data)) return data;
@@ -68,20 +66,19 @@ export default function FinanzasPage() {
     }
   };
 
-  // -----------------------------
   // Guardar nueva categoría
-  // -----------------------------
   const agregarCategoria = async () => {
     if (!nuevaCategoria.trim()) return;
 
-    await setDoc(doc(db, "categorias", nuevaCategoria), { nombre: nuevaCategoria });
+    await setDoc(doc(db, "categorias", nuevaCategoria), {
+      nombre: nuevaCategoria,
+    });
+
     setNuevaCategoria("");
     cargarCategorias();
   };
 
-  // -----------------------------
   // Guardar nueva subcategoría
-  // -----------------------------
   const agregarSubcategoria = async () => {
     if (!nuevaSubcategoria.trim() || !categoriaGasto) return;
 
@@ -112,8 +109,14 @@ export default function FinanzasPage() {
 
       snap.docs.forEach((docSnap) => {
         const d = docSnap.data();
-        sumaIng += toArray(d.ingresos).reduce((acc, i) => acc + (i.monto || 0), 0);
-        sumaGas += toArray(d.gastos).reduce((acc, g) => acc + (g.monto || 0), 0);
+        sumaIng += toArray(d.ingresos).reduce(
+          (acc, i) => acc + (i.monto || 0),
+          0
+        );
+        sumaGas += toArray(d.gastos).reduce(
+          (acc, g) => acc + (g.monto || 0),
+          0
+        );
       });
 
       setTotalGlobalIngresos(sumaIng);
@@ -150,7 +153,7 @@ export default function FinanzasPage() {
   };
 
   // -----------------------------
-  // Agregar ingreso
+  // Agregar INGRESO
   // -----------------------------
   const agregarIngreso = async () => {
     if (!montoIngreso || !descripcionIngreso.trim()) return;
@@ -163,7 +166,11 @@ export default function FinanzasPage() {
 
     const nuevos = [...ingresos, nuevo];
 
-    await setDoc(doc(db, "finanzas", fecha), { ingresos: nuevos }, { merge: true });
+    await setDoc(
+      doc(db, "finanzas", fecha),
+      { ingresos: nuevos },
+      { merge: true }
+    );
 
     setIngresos(nuevos);
     setTotalGlobalIngresos((prev) => prev + nuevo.monto);
@@ -173,13 +180,13 @@ export default function FinanzasPage() {
   };
 
   // -----------------------------
-  // Agregar gasto (dinámico)
+  // Agregar GASTO (con fecha propia)
   // -----------------------------
   const agregarGasto = async () => {
     if (!montoGasto || !categoriaGasto) return;
 
     const nuevo = {
-      fecha,
+      fecha: fechaGasto, // <<< FECHA PERSONALIZADA
       monto: Number(montoGasto),
       categoria: categoriaGasto,
       subcategoria: subcategoriaGasto || "General",
@@ -187,18 +194,21 @@ export default function FinanzasPage() {
 
     const nuevos = [...gastos, nuevo];
 
-    await setDoc(doc(db, "finanzas", fecha), { gastos: nuevos }, { merge: true });
+    await setDoc(
+      doc(db, "finanzas", fecha),
+      { gastos: nuevos },
+      { merge: true }
+    );
 
     setGastos(nuevos);
     setTotalGlobalGastos((prev) => prev + nuevo.monto);
 
     setMontoGasto("");
     setSubcategoriaGasto("");
+    setFechaGasto(today); // reinicia fecha
   };
 
-  // -----------------------------
   // Totales
-  // -----------------------------
   const totalIngresos = ingresos.reduce((acc, i) => acc + i.monto, 0);
   const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
   const saldo = totalIngresos - totalGastos;
@@ -213,7 +223,7 @@ export default function FinanzasPage() {
         Finanzas – Ingresos y Gastos
       </h1>
 
-      {/* FECHA */}
+      {/* FECHA PRINCIPAL */}
       <label className="font-semibold">Fecha:</label>
       <input
         type="date"
@@ -224,7 +234,9 @@ export default function FinanzasPage() {
 
       {/* GESTIÓN DE CATEGORÍAS */}
       <div className="bg-neutral-900 p-4 mb-6 rounded border border-neutral-800">
-        <h2 className="text-lg text-blue-300 font-bold mb-2">Categorías dinámicas</h2>
+        <h2 className="text-lg text-blue-300 font-bold mb-2">
+          Categorías dinámicas
+        </h2>
 
         {/* AGREGAR CATEGORÍA */}
         <div className="flex gap-2 mb-3">
@@ -278,7 +290,7 @@ export default function FinanzasPage() {
 
       {/* GRID INGRESOS/GASTOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
+        
         {/* INGRESOS */}
         <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-xl">
           <h2 className="text-xl text-green-400 mb-2">Registrar ingreso</h2>
@@ -308,9 +320,13 @@ export default function FinanzasPage() {
 
           <div className="mt-4 max-h-80 overflow-y-auto pr-2">
             {ingresos.map((i, idx) => (
-              <div key={idx} className="bg-neutral-800 p-3 mb-2 rounded border border-neutral-700">
+              <div
+                key={idx}
+                className="bg-neutral-800 p-3 mb-2 rounded border border-neutral-700"
+              >
                 <p className="font-bold text-green-300">+ ${i.monto}</p>
                 <p className="text-neutral-400 text-sm">{i.descripcion}</p>
+                <p className="text-neutral-500 text-xs mt-1">Fecha: {i.fecha}</p>
               </div>
             ))}
           </div>
@@ -328,6 +344,14 @@ export default function FinanzasPage() {
             className="w-full p-2 mb-2 bg-neutral-800 border border-neutral-700 rounded"
           />
 
+          {/* FECHA PARA EL GASTO */}
+          <input
+            type="date"
+            value={fechaGasto}
+            onChange={(e) => setFechaGasto(e.target.value)}
+            className="w-full p-2 mb-2 bg-neutral-800 border border-neutral-700 rounded"
+          />
+
           {/* CATEGORÍA */}
           <select
             value={categoriaGasto}
@@ -339,7 +363,9 @@ export default function FinanzasPage() {
           >
             <option value="">Seleccione categoría</option>
             {categorias.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
 
@@ -351,7 +377,9 @@ export default function FinanzasPage() {
           >
             <option value="">Seleccione subcategoría</option>
             {subcategorias.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
 
@@ -364,10 +392,16 @@ export default function FinanzasPage() {
 
           <div className="mt-4 max-h-80 overflow-y-auto pr-2">
             {gastos.map((g, idx) => (
-              <div key={idx} className="bg-neutral-800 p-3 mb-2 rounded border border-neutral-700">
+              <div
+                key={idx}
+                className="bg-neutral-800 p-3 mb-2 rounded border border-neutral-700"
+              >
                 <p className="font-bold text-red-300">– ${g.monto}</p>
                 <p className="text-yellow-300 text-sm">
                   {g.categoria} → {g.subcategoria}
+                </p>
+                <p className="text-neutral-500 text-xs mt-1">
+                  Fecha: {g.fecha}
                 </p>
               </div>
             ))}
@@ -377,7 +411,9 @@ export default function FinanzasPage() {
 
       {/* SALDO DEL DÍA */}
       <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-xl text-center mt-8">
-        <h2 className="text-xl font-bold mb-2 text-yellow-300">Saldo del día</h2>
+        <h2 className="text-xl font-bold mb-2 text-yellow-300">
+          Saldo del día
+        </h2>
 
         <p className="text-green-400 text-lg">
           Ingresos: <strong>${totalIngresos.toFixed(2)}</strong>
@@ -398,14 +434,18 @@ export default function FinanzasPage() {
 
       {/* SALDO GLOBAL */}
       <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-xl text-center mt-6">
-        <h2 className="text-xl font-bold mb-2 text-blue-300">Resumen global</h2>
+        <h2 className="text-xl font-bold mb-2 text-blue-300">
+          Resumen global
+        </h2>
 
         <p className="text-green-400 text-lg">
-          Ingresos totales: <strong>${totalGlobalIngresos.toFixed(2)}</strong>
+          Ingresos totales:{" "}
+          <strong>${totalGlobalIngresos.toFixed(2)}</strong>
         </p>
 
         <p className="text-red-400 text-lg">
-          Gastos totales: <strong>${totalGlobalGastos.toFixed(2)}</strong>
+          Gastos totales:{" "}
+          <strong>${totalGlobalGastos.toFixed(2)}</strong>
         </p>
 
         <h3
