@@ -8,26 +8,38 @@ import {
   setDoc,
   collection,
   getDocs,
+  updateDoc,
 } from "firebase/firestore";
 
 export default function FinanzasPage() {
   const today = new Date().toISOString().split("T")[0];
   const [fecha, setFecha] = useState("");
 
+  // Datos principales
   const [ingresos, setIngresos] = useState<any[]>([]);
   const [gastos, setGastos] = useState<any[]>([]);
 
+  // Ingreso
   const [montoIngreso, setMontoIngreso] = useState("");
   const [descripcionIngreso, setDescripcionIngreso] = useState("");
 
+  // Gasto
   const [montoGasto, setMontoGasto] = useState("");
-  const [descripcionGasto, setDescripcionGasto] = useState("");
+  const [categoriaGasto, setCategoriaGasto] = useState("");
+  const [subcategoriaGasto, setSubcategoriaGasto] = useState("");
 
+  // Categorías dinámicas
+  const [categorias, setCategorias] = useState<string[]>([]);
+  const [subcategorias, setSubcategorias] = useState<string[]>([]);
+  const [nuevaCategoria, setNuevaCategoria] = useState("");
+  const [nuevaSubcategoria, setNuevaSubcategoria] = useState("");
+
+  // Totales
   const [totalGlobalIngresos, setTotalGlobalIngresos] = useState(0);
   const [totalGlobalGastos, setTotalGlobalGastos] = useState(0);
 
   // -----------------------------
-  // Convertir objetos → arrays
+  // Helpers
   // -----------------------------
   const toArray = (data: any) => {
     if (!data) return [];
@@ -36,10 +48,62 @@ export default function FinanzasPage() {
   };
 
   // -----------------------------
-  // Cargar inicio (totales globales + última fecha)
+  // Cargar categorías dinámicas
+  // -----------------------------
+  const cargarCategorias = async () => {
+    const ref = collection(db, "categorias");
+    const snap = await getDocs(ref);
+    const lista = snap.docs.map((d) => d.id);
+    setCategorias(lista);
+  };
+
+  const cargarSubcategorias = async (categoria: string) => {
+    if (!categoria) return setSubcategorias([]);
+    const ref = doc(db, "subcategorias", categoria);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      setSubcategorias(snap.data().lista || []);
+    } else {
+      setSubcategorias([]);
+    }
+  };
+
+  // -----------------------------
+  // Guardar nueva categoría
+  // -----------------------------
+  const agregarCategoria = async () => {
+    if (!nuevaCategoria.trim()) return;
+
+    await setDoc(doc(db, "categorias", nuevaCategoria), { nombre: nuevaCategoria });
+    setNuevaCategoria("");
+    cargarCategorias();
+  };
+
+  // -----------------------------
+  // Guardar nueva subcategoría
+  // -----------------------------
+  const agregarSubcategoria = async () => {
+    if (!nuevaSubcategoria.trim() || !categoriaGasto) return;
+
+    const ref = doc(db, "subcategorias", categoriaGasto);
+    const snap = await getDoc(ref);
+
+    let lista = snap.exists() ? snap.data().lista || [] : [];
+    lista.push(nuevaSubcategoria);
+
+    await setDoc(ref, { lista });
+    setNuevaSubcategoria("");
+
+    cargarSubcategorias(categoriaGasto);
+  };
+
+  // -----------------------------
+  // Cargar inicio
   // -----------------------------
   useEffect(() => {
     const cargarInicio = async () => {
+      await cargarCategorias();
+
       const ref = collection(db, "finanzas");
       const snap = await getDocs(ref);
 
@@ -48,12 +112,8 @@ export default function FinanzasPage() {
 
       snap.docs.forEach((docSnap) => {
         const d = docSnap.data();
-
-        const ing = toArray(d.ingresos);
-        const gas = toArray(d.gastos);
-
-        sumaIng += ing.reduce((acc, i) => acc + (i.monto || 0), 0);
-        sumaGas += gas.reduce((acc, g) => acc + (g.monto || 0), 0);
+        sumaIng += toArray(d.ingresos).reduce((acc, i) => acc + (i.monto || 0), 0);
+        sumaGas += toArray(d.gastos).reduce((acc, g) => acc + (g.monto || 0), 0);
       });
 
       setTotalGlobalIngresos(sumaIng);
@@ -71,9 +131,6 @@ export default function FinanzasPage() {
     cargarInicio();
   }, []);
 
-  // -----------------------------
-  // Cargar datos por fecha
-  // -----------------------------
   useEffect(() => {
     if (fecha) cargarPorFecha(fecha);
   }, [fecha]);
@@ -116,15 +173,16 @@ export default function FinanzasPage() {
   };
 
   // -----------------------------
-  // Agregar gasto
+  // Agregar gasto (dinámico)
   // -----------------------------
   const agregarGasto = async () => {
-    if (!montoGasto || !descripcionGasto.trim()) return;
+    if (!montoGasto || !categoriaGasto) return;
 
     const nuevo = {
-      descripcion: descripcionGasto,
       fecha,
       monto: Number(montoGasto),
+      categoria: categoriaGasto,
+      subcategoria: subcategoriaGasto || "General",
     };
 
     const nuevos = [...gastos, nuevo];
@@ -135,21 +193,22 @@ export default function FinanzasPage() {
     setTotalGlobalGastos((prev) => prev + nuevo.monto);
 
     setMontoGasto("");
-    setDescripcionGasto("");
+    setSubcategoriaGasto("");
   };
 
   // -----------------------------
-  // Totales del día
+  // Totales
   // -----------------------------
-  const totalIngresos = ingresos.reduce((acc, i) => acc + (i.monto || 0), 0);
-  const totalGastos = gastos.reduce((acc, g) => acc + (g.monto || 0), 0);
+  const totalIngresos = ingresos.reduce((acc, i) => acc + i.monto, 0);
+  const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
   const saldo = totalIngresos - totalGastos;
-
   const saldoGlobal = totalGlobalIngresos - totalGlobalGastos;
 
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
     <main className="min-h-screen bg-neutral-950 text-white p-6">
-
       <h1 className="text-3xl font-bold text-yellow-400 mb-4 text-center">
         Finanzas – Ingresos y Gastos
       </h1>
@@ -163,10 +222,64 @@ export default function FinanzasPage() {
         className="w-full p-2 mb-6 bg-neutral-900 border border-neutral-700 rounded"
       />
 
-      {/* GRID DOS COLUMNAS */}
+      {/* GESTIÓN DE CATEGORÍAS */}
+      <div className="bg-neutral-900 p-4 mb-6 rounded border border-neutral-800">
+        <h2 className="text-lg text-blue-300 font-bold mb-2">Categorías dinámicas</h2>
+
+        {/* AGREGAR CATEGORÍA */}
+        <div className="flex gap-2 mb-3">
+          <input
+            type="text"
+            value={nuevaCategoria}
+            onChange={(e) => setNuevaCategoria(e.target.value)}
+            placeholder="Nueva categoría"
+            className="flex-1 p-2 bg-neutral-800 border border-neutral-700 rounded"
+          />
+          <button
+            onClick={agregarCategoria}
+            className="px-4 bg-blue-600 hover:bg-blue-700 rounded"
+          >
+            Añadir
+          </button>
+        </div>
+
+        {/* AGREGAR SUBCATEGORÍA */}
+        <div className="flex gap-2">
+          <select
+            value={categoriaGasto}
+            onChange={(e) => {
+              setCategoriaGasto(e.target.value);
+              cargarSubcategorias(e.target.value);
+            }}
+            className="flex-1 p-2 bg-neutral-800 border border-neutral-700 rounded"
+          >
+            <option value="">Seleccione categoría</option>
+            {categorias.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            value={nuevaSubcategoria}
+            onChange={(e) => setNuevaSubcategoria(e.target.value)}
+            placeholder="Nueva subcategoría"
+            className="flex-1 p-2 bg-neutral-800 border border-neutral-700 rounded"
+          />
+
+          <button
+            onClick={agregarSubcategoria}
+            className="px-4 bg-purple-600 hover:bg-purple-700 rounded"
+          >
+            Añadir
+          </button>
+        </div>
+      </div>
+
+      {/* GRID INGRESOS/GASTOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        {/* COLUMNA INGRESOS */}
+        {/* INGRESOS */}
         <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-xl">
           <h2 className="text-xl text-green-400 mb-2">Registrar ingreso</h2>
 
@@ -195,10 +308,7 @@ export default function FinanzasPage() {
 
           <div className="mt-4 max-h-80 overflow-y-auto pr-2">
             {ingresos.map((i, idx) => (
-              <div
-                key={idx}
-                className="bg-neutral-800 p-3 mb-2 rounded border border-neutral-700"
-              >
+              <div key={idx} className="bg-neutral-800 p-3 mb-2 rounded border border-neutral-700">
                 <p className="font-bold text-green-300">+ ${i.monto}</p>
                 <p className="text-neutral-400 text-sm">{i.descripcion}</p>
               </div>
@@ -206,7 +316,7 @@ export default function FinanzasPage() {
           </div>
         </div>
 
-        {/* COLUMNA GASTOS */}
+        {/* GASTOS */}
         <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-xl">
           <h2 className="text-xl text-red-400 mb-2">Registrar gasto</h2>
 
@@ -218,13 +328,32 @@ export default function FinanzasPage() {
             className="w-full p-2 mb-2 bg-neutral-800 border border-neutral-700 rounded"
           />
 
-          <input
-            type="text"
-            placeholder="Motivo"
-            value={descripcionGasto}
-            onChange={(e) => setDescripcionGasto(e.target.value)}
+          {/* CATEGORÍA */}
+          <select
+            value={categoriaGasto}
+            onChange={(e) => {
+              setCategoriaGasto(e.target.value);
+              cargarSubcategorias(e.target.value);
+            }}
             className="w-full p-2 mb-2 bg-neutral-800 border border-neutral-700 rounded"
-          />
+          >
+            <option value="">Seleccione categoría</option>
+            {categorias.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
+          {/* SUBCATEGORÍA */}
+          <select
+            value={subcategoriaGasto}
+            onChange={(e) => setSubcategoriaGasto(e.target.value)}
+            className="w-full p-2 mb-2 bg-neutral-800 border border-neutral-700 rounded"
+          >
+            <option value="">Seleccione subcategoría</option>
+            {subcategorias.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
 
           <button
             onClick={agregarGasto}
@@ -235,12 +364,11 @@ export default function FinanzasPage() {
 
           <div className="mt-4 max-h-80 overflow-y-auto pr-2">
             {gastos.map((g, idx) => (
-              <div
-                key={idx}
-                className="bg-neutral-800 p-3 mb-2 rounded border border-neutral-700"
-              >
+              <div key={idx} className="bg-neutral-800 p-3 mb-2 rounded border border-neutral-700">
                 <p className="font-bold text-red-300">– ${g.monto}</p>
-                <p className="text-neutral-400 text-sm">{g.descripcion}</p>
+                <p className="text-yellow-300 text-sm">
+                  {g.categoria} → {g.subcategoria}
+                </p>
               </div>
             ))}
           </div>
@@ -268,7 +396,7 @@ export default function FinanzasPage() {
         </h3>
       </div>
 
-      {/* RESUMEN GLOBAL */}
+      {/* SALDO GLOBAL */}
       <div className="bg-neutral-900 p-4 border border-neutral-800 rounded-xl text-center mt-6">
         <h2 className="text-xl font-bold mb-2 text-blue-300">Resumen global</h2>
 
