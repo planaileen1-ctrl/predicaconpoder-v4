@@ -33,6 +33,11 @@ export default function AileenDiaPage({ params }: { params: { day: string } }) {
 
   const [estadoDia, setEstadoDia] = useState<EstadoDia>("bloqueado");
 
+  // 📝 Preguntas dinámicas (si existen en Firestore)
+  const [preguntasDinamicas, setPreguntasDinamicas] = useState<string[] | null>(
+    null
+  );
+
   // ==================================================
   // 🔒 Validar login y obtener sexo del usuario
   // ==================================================
@@ -61,56 +66,83 @@ export default function AileenDiaPage({ params }: { params: { day: string } }) {
   // 🕒 CALCULAR ESTADO DEL DÍA SEGÚN FECHA DEL USUARIO
   // ==================================================
   useEffect(() => {
-    const calcular = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+  const calcular = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-      const refUser = doc(db, "usuarios", user.uid);
-      const snap = await getDoc(refUser);
+    const refUser = doc(db, "usuarios", user.uid);
+    const snapUser = await getDoc(refUser);
 
-      if (!snap.exists()) {
-        setEstadoDia("bloqueado");
-        return;
-      }
+    if (!snapUser.exists()) {
+      setEstadoDia("bloqueado");
+      return;
+    }
 
-      let data = snap.data();
+    let data = snapUser.data();
 
-      // ⭐ Si NO tiene fechaInicioPlan, la grabamos HOY mismo
-      if (!data.fechaInicioPlan) {
-        await setDoc(
-          refUser,
-          { fechaInicioPlan: Timestamp.now() },
-          { merge: true }
-        );
-        data.fechaInicioPlan = Timestamp.now();
-      }
+    // Si NO tiene fechaInicioPlan → se registra hoy
+    if (!data.fechaInicioPlan) {
+      await setDoc(
+        refUser,
+        { fechaInicioPlan: Timestamp.now() },
+        { merge: true }
+      );
+      data.fechaInicioPlan = Timestamp.now();
+    }
 
-      const inicio = data.fechaInicioPlan.toDate();
-      const hoy = new Date();
+    const inicio = data.fechaInicioPlan.toDate();
+    const hoy = new Date();
 
-      const diffMs = hoy.getTime() - inicio.getTime();
-      const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    const diffMs = hoy.getTime() - inicio.getTime();
+    const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    // diffDias = el día que debería estar viviendo Aileen hoy
 
-      /*
-        diffDias es el día REAL que le toca al usuario:
-        - Usuario nuevo hoy → diffDias = 1
-        - Usuario con 3 días → diffDias = 3
-      */
+    // ================================
+    // BLOQUEAR FUTUROS
+    // ================================
+    if (dayNum > diffDias) {
+      setEstadoDia("bloqueado");
+      return;
+    }
 
-      if (dayNum < diffDias) {
-        setEstadoDia("soloLectura");
-      } else if (dayNum === diffDias) {
-        setEstadoDia("activo");
+    // ================================
+    // VERIFICAR SI YA RESPONDIÓ ESTE DÍA
+    // ================================
+    const refResp = doc(db, "aileen_respuestas", `${user.uid}_dia_${dayNum}`);
+    const snapResp = await getDoc(refResp);
+    const yaRespondido = snapResp.exists();
+
+    // ================================
+    // DÍAS PASADOS
+    // ================================
+    if (dayNum < diffDias) {
+      if (yaRespondido) {
+        setEstadoDia("soloLectura"); // ya lo hizo
       } else {
-        setEstadoDia("bloqueado");
+        setEstadoDia("activo"); // puede completarlo
       }
-    };
+      return;
+    }
 
-    calcular();
-  }, [dayNum]);
+    // ================================
+    // DÍA ACTUAL
+    // ================================
+    if (dayNum === diffDias) {
+      if (yaRespondido) {
+        setEstadoDia("soloLectura");
+      } else {
+        setEstadoDia("activo");
+      }
+      return;
+    }
+  };
+
+  calcular();
+}, [dayNum]);
+
 
   // ==================================================
-  // 📄 Cargar PDF + respuestas + calificación
+  // 📄 Cargar PDF + respuestas + calificación + preguntas
   // ==================================================
   useEffect(() => {
     const cargarDatos = async () => {
@@ -135,10 +167,31 @@ export default function AileenDiaPage({ params }: { params: { day: string } }) {
           }
         }
 
+        // Preguntas dinámicas del día (si existen)
+        const refPreg = doc(db, "planAileen_preguntas", `dia-${day}`);
+        const snapPreg = await getDoc(refPreg);
+
+        if (snapPreg.exists()) {
+          const dataPreg = snapPreg.data();
+          if (Array.isArray(dataPreg.preguntas)) {
+            const arr = dataPreg.preguntas as string[];
+            setPreguntasDinamicas([
+              arr[0] || "",
+              arr[1] || "",
+              arr[2] || "",
+              arr[3] || "",
+            ]);
+          }
+        }
+
         const user = auth.currentUser;
         if (user) {
           // RESPUESTAS
-          const refResp = doc(db, "aileen_respuestas", `${user.uid}_dia_${day}`);
+          const refResp = doc(
+            db,
+            "aileen_respuestas",
+            `${user.uid}_dia_${day}`
+          );
           const snapResp = await getDoc(refResp);
 
           if (snapResp.exists()) {
@@ -199,7 +252,9 @@ export default function AileenDiaPage({ params }: { params: { day: string } }) {
 
     const minWords = 50;
     for (const key in answers) {
-      const words = answers[key as keyof typeof answers].trim().split(/\s+/);
+      const words = answers[key as keyof typeof answers]
+        .trim()
+        .split(/\s+/);
       if (words.length < minWords) {
         setError("Cada respuesta debe tener al menos 50 palabras.");
         return;
@@ -250,9 +305,7 @@ export default function AileenDiaPage({ params }: { params: { day: string } }) {
   if (estadoDia === "bloqueado") {
     return (
       <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center px-4">
-        <h1 className="text-3xl font-bold mb-4 text-yellow-400">
-          Día {day}
-        </h1>
+        <h1 className="text-3xl font-bold mb-4 text-yellow-400">Día {day}</h1>
         <p className="text-neutral-200 text-lg text-center mb-2">
           No te afanes… es día por día.
         </p>
@@ -269,6 +322,16 @@ export default function AileenDiaPage({ params }: { params: { day: string } }) {
   // ==================================================
   // VISTA NORMAL (ACTIVO O SOLO LECTURA)
   // ==================================================
+  const preguntasParaMostrar =
+    preguntasDinamicas && preguntasDinamicas.some((p) => p && p.trim() !== "")
+      ? preguntasDinamicas
+      : [
+          "¿Qué aprendiste de este capítulo?",
+          "¿Por qué piensas que Dios permitió que se escriba este capítulo?",
+          "¿Por qué crees que no es bueno a esta edad tener novio o novia?",
+          "¿Qué consejo le darías a un amigo/a si te dice que ya quiere tener enamorado/a?",
+        ];
+
   return (
     <main className="min-h-screen bg-neutral-950 text-white px-4 py-6 flex justify-center">
       <div className="w-full max-w-3xl">
@@ -318,42 +381,28 @@ export default function AileenDiaPage({ params }: { params: { day: string } }) {
         </div>
 
         {/* Preguntas */}
-        <div className={`bg-neutral-900 border ${borde} rounded-xl p-4 space-y-6`}>
-          <Pregunta
-            label="1. ¿Qué aprendiste de este capítulo?"
-            value={answers.p1}
-            onChange={(v) => setAnswers({ ...answers, p1: v })}
-            onPaste={handlePaste}
-            borde={borde}
-            disabled={soloLectura}
-          />
-
-          <Pregunta
-            label="2. ¿Por qué piensas que Dios permitió que se escriba este capítulo?"
-            value={answers.p2}
-            onChange={(v) => setAnswers({ ...answers, p2: v })}
-            onPaste={handlePaste}
-            borde={borde}
-            disabled={soloLectura}
-          />
-
-          <Pregunta
-            label="3. ¿Por qué crees que no es bueno a esta edad tener novio o novia?"
-            value={answers.p3}
-            onChange={(v) => setAnswers({ ...answers, p3: v })}
-            onPaste={handlePaste}
-            borde={borde}
-            disabled={soloLectura}
-          />
-
-          <Pregunta
-            label="4. ¿Qué consejo le darías a un amigo/a si te dice que ya quiere tener enamorado/a?"
-            value={answers.p4}
-            onChange={(v) => setAnswers({ ...answers, p4: v })}
-            onPaste={handlePaste}
-            borde={borde}
-            disabled={soloLectura}
-          />
+        <div
+          className={`bg-neutral-900 border ${borde} rounded-xl p-4 space-y-6`}
+        >
+          {preguntasParaMostrar.map((pregunta, idx) => {
+            const key = `p${idx + 1}` as keyof typeof answers;
+            return (
+              <Pregunta
+                key={idx}
+                label={`${idx + 1}. ${pregunta}`}
+                value={answers[key]}
+                onChange={(v) =>
+                  setAnswers({
+                    ...answers,
+                    [key]: v,
+                  })
+                }
+                onPaste={handlePaste}
+                borde={borde}
+                disabled={soloLectura}
+              />
+            );
+          })}
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
@@ -394,7 +443,8 @@ function Pregunta({
   borde: string;
   disabled: boolean;
 }) {
-  const wordCount = value.trim() === "" ? 0 : value.trim().split(/\s+/).length;
+  const wordCount =
+    value.trim() === "" ? 0 : value.trim().split(/\s+/).length;
 
   return (
     <div>
@@ -410,9 +460,7 @@ function Pregunta({
       />
       <p className="text-xs text-neutral-400 mt-1">
         Palabras:{" "}
-        <span
-          className={wordCount >= 50 ? "text-green-400" : "text-red-400"}
-        >
+        <span className={wordCount >= 50 ? "text-green-400" : "text-red-400"}>
           {wordCount}
         </span>{" "}
         / 50

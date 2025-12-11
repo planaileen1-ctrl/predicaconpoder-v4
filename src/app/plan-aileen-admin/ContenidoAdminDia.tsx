@@ -25,21 +25,42 @@ export default function ContenidoAdminDia({ day }: { day: string }) {
   const [comentario, setComentario] = useState("");
   const [userIdSeleccionado, setUserIdSeleccionado] = useState("");
 
+  // 📝 Preguntas dinámicas (4 por día)
+  const [preguntas, setPreguntas] = useState<string[]>(["", "", "", ""]);
+
   // ==================================================
-  // 📄 Cargar PDF + título del día
+  // 📄 Cargar PDF + título + preguntas + respuestas
   // ==================================================
   useEffect(() => {
     const cargarDatos = async () => {
+      // PDF + título
       const refDia = doc(db, "planAileen_pdfs", `dia-${day}`);
       const snap = await getDoc(refDia);
 
       if (snap.exists()) {
         const data = snap.data();
         setTitulo(data.titulo || "");
-        setPdfUrl(data.url || null);  // <-- AGREGADO
+        setPdfUrl(data.url || null);
       }
 
-      // Cargar respuestas del día
+      // Preguntas del día (si existen)
+      const refPreg = doc(db, "planAileen_preguntas", `dia-${day}`);
+      const snapPreg = await getDoc(refPreg);
+
+      if (snapPreg.exists()) {
+        const dataPreg = snapPreg.data();
+        if (Array.isArray(dataPreg.preguntas)) {
+          const arr = dataPreg.preguntas as string[];
+          setPreguntas([
+            arr[0] || "",
+            arr[1] || "",
+            arr[2] || "",
+            arr[3] || "",
+          ]);
+        }
+      }
+
+      // Respuestas del día
       const q = query(
         collection(db, "aileen_respuestas"),
         where("day", "==", Number(day))
@@ -66,7 +87,7 @@ export default function ContenidoAdminDia({ day }: { day: string }) {
       await uploadBytes(storageRef, file);
 
       const url = await getDownloadURL(storageRef);
-      setPdfUrl(url); // <-- AGREGADO
+      setPdfUrl(url);
 
       await setDoc(
         doc(db, "planAileen_pdfs", `dia-${day}`),
@@ -83,6 +104,24 @@ export default function ContenidoAdminDia({ day }: { day: string }) {
       alert("Error al subir el PDF.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ==================================================
+  // 🧾 Guardar preguntas dinámicas
+  // ==================================================
+  const guardarPreguntas = async () => {
+    try {
+      await setDoc(
+        doc(db, "planAileen_preguntas", `dia-${day}`),
+        { preguntas },
+        { merge: true }
+      );
+
+      alert("Preguntas guardadas correctamente ✔");
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar preguntas.");
     }
   };
 
@@ -134,7 +173,6 @@ export default function ContenidoAdminDia({ day }: { day: string }) {
 
   return (
     <main className="min-h-screen text-white px-4 py-6">
-
       {/* BOTONES */}
       <div className="flex gap-4 mb-6">
         <button
@@ -215,6 +253,34 @@ export default function ContenidoAdminDia({ day }: { day: string }) {
           </a>
         </div>
       )}
+
+      {/* 📝 PREGUNTAS DEL DÍA (ADMIN) */}
+      <div className="bg-neutral-900 p-4 rounded-xl border border-neutral-700 mb-6">
+        <h2 className="font-semibold mb-3">Preguntas del día</h2>
+
+        {preguntas.map((p, idx) => (
+          <div key={idx} className="mb-4">
+            <label className="block mb-1">Pregunta {idx + 1}</label>
+            <input
+              type="text"
+              className="w-full p-2 bg-neutral-800 border border-neutral-700 rounded-lg"
+              value={preguntas[idx]}
+              onChange={(e) => {
+                const arr = [...preguntas];
+                arr[idx] = e.target.value;
+                setPreguntas(arr);
+              }}
+            />
+          </div>
+        ))}
+
+        <button
+          onClick={guardarPreguntas}
+          className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg mt-2"
+        >
+          Guardar preguntas
+        </button>
+      </div>
 
       {/* RESPUESTAS */}
       <h2 className="text-xl font-bold mb-4">Respuestas del día</h2>
