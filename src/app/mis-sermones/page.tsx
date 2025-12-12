@@ -2,17 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function MisSermonesPage() {
   const [sermones, setSermones] = useState<any[]>([]);
-  const user = auth.currentUser;
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    if (!user) return;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    const cargarSermones = async () => {
       const q = query(
         collection(db, "sermones"),
         where("uid", "==", user.uid),
@@ -20,38 +31,74 @@ export default function MisSermonesPage() {
       );
 
       const snaps = await getDocs(q);
-
       const data = snaps.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
 
       setSermones(data);
-    };
+      setLoading(false);
+    });
 
-    cargarSermones();
-  }, [user]);
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-black text-white p-6">
+        Cargando sermones…
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white p-6">
+    <main className="min-h-screen bg-black text-white p-6">
+      {/* 🔙 BOTÓN DASHBOARD */}
+      <button
+        onClick={() => router.push("/dashboard")}
+        className="mb-4 inline-flex items-center gap-2 px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg hover:bg-neutral-700 transition"
+      >
+        ← Volver al Dashboard
+      </button>
+
       <h1 className="text-3xl font-bold mb-6">Mis Sermones</h1>
 
       {sermones.length === 0 && (
-        <p className="text-neutral-400">Aún no has creado sermones.</p>
+        <p className="text-neutral-400">
+          Aún no has creado sermones.
+        </p>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {sermones.map((s) => (
-          <Link
+          <div
             key={s.id}
-            href={`/mis-sermones/${s.id}`}
-            className="block p-4 bg-neutral-900 border border-neutral-800 rounded-xl hover:bg-neutral-800 transition"
+            className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl"
           >
-            <h2 className="text-lg font-semibold">{s.titulo}</h2>
-            <p className="text-neutral-400 text-sm">
+            <h2 className="text-lg font-semibold">
+              {s.titulo}
+            </h2>
+
+            <p className="text-neutral-400 text-sm mb-4">
               {s.pasaje || "Sin pasaje"}
             </p>
-          </Link>
+
+            <div className="flex gap-3">
+              <Link
+                href={`/mis-sermones/${s.id}`}
+                className="px-4 py-2 bg-blue-600 rounded-lg text-sm"
+              >
+                📖 Ver
+              </Link>
+
+              <Link
+                href={`/mis-sermones/${s.id}/presentar`}
+                className="px-4 py-2 bg-indigo-600 rounded-lg text-sm"
+              >
+                🎤 Predicar
+              </Link>
+            </div>
+          </div>
         ))}
       </div>
     </main>

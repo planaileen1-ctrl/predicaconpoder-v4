@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { db, auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import EditorSimple from "@/components/EditorSimple";
+
+import bibleRVR from "@/data/bible.json"; // si no existe aún, puedes duplicar la RVR
 
 type Subtema = {
   titulo: string;
@@ -15,164 +18,262 @@ export default function CrearSermonPage() {
 
   const [titulo, setTitulo] = useState("");
   const [pasaje, setPasaje] = useState("");
-  const [objetivo, setObjetivo] = useState("");
-  const [contenido, setContenido] = useState("");
 
-  const [subtemas, setSubtemas] = useState<Subtema[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  /* ================= BIBLIA ================= */
+  const [showBiblia, setShowBiblia] = useState(false);
+  const [versionBiblia, setVersionBiblia] =
+    useState<"RVR1960" | "NTV">("RVR1960");
 
-  const addSubtema = () => {
+  const [libro, setLibro] = useState("");
+  const [capitulo, setCapitulo] = useState("");
+  const [versiculo, setVersiculo] = useState("");
+  const [versiculoTexto, setVersiculoTexto] = useState("");
+
+  const bible =
+    versionBiblia === "RVR1960" ? bibleRVR : bibleRVR;
+
+  const libros = Object.keys(bible as any);
+
+  const textoDetectado =
+    libro &&
+    capitulo &&
+    versiculo &&
+    (bible as any)?.[libro]?.[capitulo]?.[versiculo];
+
+  /* ================= SUBTEMAS ================= */
+  const [subtemas, setSubtemas] = useState<Subtema[]>([
+    { titulo: "", contenido: "" },
+  ]);
+
+  const agregarSubtema = () => {
     setSubtemas([...subtemas, { titulo: "", contenido: "" }]);
   };
 
-  const updateSubtema = (index: number, field: "titulo" | "contenido", value: string) => {
-    const updated = [...subtemas];
-    updated[index][field] = value;
-    setSubtemas(updated);
+  const updateSubtema = (
+    index: number,
+    campo: "titulo" | "contenido",
+    valor: string
+  ) => {
+    const copia = [...subtemas];
+    copia[index][campo] = valor;
+    setSubtemas(copia);
   };
 
-  const deleteSubtema = (index: number) => {
-    setSubtemas(subtemas.filter((_, i) => i !== index));
-  };
+  /* ================= GUARDAR ================= */
+  const guardarSermon = async () => {
+    const user = auth.currentUser;
+    if (!user) return alert("Debes iniciar sesión");
 
-  const saveSermon = async () => {
-    if (!titulo || !pasaje || !contenido) {
-      setError("Debes completar todos los campos obligatorios");
-      return;
-    }
+    await addDoc(collection(db, "sermones"), {
+      uid: user.uid,
+      titulo,
+      pasaje,
+      versiculoTexto,
+      versionBiblia,
+      subtemas,
+      archivado: false,
+      createdAt: Timestamp.now(),
+    });
 
-    setError("");
-    setLoading(true);
-
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        setError("Debes iniciar sesión");
-        return;
-      }
-
-      // 🔥 GUARDAR CON ARCHIVADO: FALSE
-      const ref = await addDoc(collection(db, "sermones"), {
-        uid: user.uid,
-        titulo,
-        pasaje,
-        objetivo,
-        contenido,
-        subtemas,
-        creadoEn: Timestamp.now(),
-        archivado: false,
-      });
-
-      // 🔥 REDIRIGIR A LA VISTA DEL SERMON
-      router.push(`/mis-sermones/${ref.id}`);
-
-    } catch (e) {
-      setError("Error al guardar el sermón.");
-    } finally {
-      setLoading(false);
-    }
+    router.push("/mis-sermones");
   };
 
   return (
-    <main className="min-h-screen bg-black text-white px-4 py-10">
-      <h1 className="text-3xl font-bold mb-8">Crear Sermón</h1>
+    <main className="min-h-screen bg-neutral-950 text-white p-6 max-w-5xl mx-auto">
+      {/* HEADER */}
+      <div className="mb-8">
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="text-indigo-400 text-sm hover:underline"
+        >
+          ← Volver al Dashboard
+        </button>
+        <h1 className="text-3xl font-bold mt-2">
+          Crear Sermón
+        </h1>
+      </div>
 
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
-          <label className="text-sm">Título del sermón</label>
-          <input
-            type="text"
-            className="w-full mt-1 px-3 py-2 bg-neutral-800 rounded-lg"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-          />
-        </div>
+      {/* TÍTULO */}
+      <div className="mb-6">
+        <label className="block mb-2 font-semibold">
+          Título del sermón
+        </label>
+        <input
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          className="w-full bg-neutral-800 p-4 rounded-xl"
+        />
+      </div>
 
-        <div>
-          <label className="text-sm">Pasaje bíblico</label>
+      {/* PASAJE */}
+      <div className="mb-10 relative">
+        <label className="block mb-2 font-semibold">
+          Pasaje bíblico
+        </label>
+
+        <div className="flex gap-2">
           <input
-            type="text"
-            placeholder="Ejemplo: Juan 3:16"
-            className="w-full mt-1 px-3 py-2 bg-neutral-800 rounded-lg"
             value={pasaje}
-            onChange={(e) => setPasaje(e.target.value)}
+            readOnly
+            className="flex-1 bg-neutral-800 p-4 rounded-xl"
+            placeholder="Selecciona un pasaje"
           />
-        </div>
-
-        <div>
-          <label className="text-sm">Objetivo del tema</label>
-          <textarea
-            className="w-full mt-1 px-3 py-2 bg-neutral-800 rounded-lg"
-            rows={3}
-            value={objetivo}
-            onChange={(e) => setObjetivo(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="text-sm">Contenido del sermón</label>
-          <textarea
-            className="w-full mt-1 px-3 py-2 bg-neutral-800 rounded-lg"
-            rows={6}
-            value={contenido}
-            onChange={(e) => setContenido(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <label className="text-sm">Subtemas</label>
 
           <button
-            onClick={addSubtema}
-            className="mt-2 px-4 py-2 bg-green-600 rounded-lg hover:bg-green-500"
+            onClick={() => setShowBiblia(!showBiblia)}
+            className="bg-purple-600 px-4 py-3 rounded-xl hover:bg-purple-500"
           >
-            ➕ Agregar subtema
+            📖
           </button>
-
-          <div className="mt-4 space-y-6">
-            {subtemas.map((sub, i) => (
-              <div key={i} className="bg-neutral-900 p-4 rounded-xl border border-neutral-700">
-                <div className="flex justify-between mb-2">
-                  <h3 className="font-semibold">Subtema {i + 1}</h3>
-                  <button
-                    onClick={() => deleteSubtema(i)}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <input
-                  type="text"
-                  placeholder="Título del subtema"
-                  className="w-full mb-3 px-3 py-2 bg-neutral-800 rounded-lg"
-                  value={sub.titulo}
-                  onChange={(e) => updateSubtema(i, "titulo", e.target.value)}
-                />
-
-                <textarea
-                  placeholder="Contenido del subtema"
-                  className="w-full px-3 py-2 bg-neutral-800 rounded-lg"
-                  rows={4}
-                  value={sub.contenido}
-                  onChange={(e) => updateSubtema(i, "contenido", e.target.value)}
-                />
-              </div>
-            ))}
-          </div>
         </div>
 
-        {error && <p className="text-red-400">{error}</p>}
+        {/* PANEL BIBLIA */}
+        {showBiblia && (
+          <div className="absolute right-0 top-20 w-[380px] bg-neutral-900 border border-neutral-700 rounded-2xl p-4 z-50">
+            <h3 className="font-bold mb-3">
+              Seleccionar pasaje
+            </h3>
 
-        <button
-          onClick={saveSermon}
-          disabled={loading}
-          className="w-full py-3 bg-blue-600 rounded-lg hover:bg-blue-500 mt-6 font-semibold"
-        >
-          {loading ? "Guardando..." : "Guardar Sermón"}
-        </button>
+            <select
+              value={versionBiblia}
+              onChange={(e) =>
+                setVersionBiblia(e.target.value as any)
+              }
+              className="w-full bg-neutral-800 p-2 rounded mb-3"
+            >
+              <option value="RVR1960">
+                Reina Valera 1960
+              </option>
+              <option value="NTV">
+                Nueva Traducción Viviente
+              </option>
+            </select>
+
+            <select
+              className="w-full bg-neutral-800 p-2 rounded mb-2"
+              value={libro}
+              onChange={(e) => {
+                setLibro(e.target.value);
+                setCapitulo("");
+                setVersiculo("");
+              }}
+            >
+              <option value="">Libro</option>
+              {libros.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+
+            {libro && (
+              <input
+                type="number"
+                placeholder="Capítulo"
+                value={capitulo}
+                onChange={(e) =>
+                  setCapitulo(e.target.value)
+                }
+                className="w-full bg-neutral-800 p-2 rounded mb-2"
+              />
+            )}
+
+            {capitulo && (
+              <input
+                type="number"
+                placeholder="Versículo"
+                value={versiculo}
+                onChange={(e) => {
+                  setVersiculo(e.target.value);
+                  setVersiculoTexto(
+                    (bible as any)?.[libro]?.[
+                      capitulo
+                    ]?.[e.target.value] || ""
+                  );
+                }}
+                className="w-full bg-neutral-800 p-2 rounded mb-3"
+              />
+            )}
+
+            {versiculoTexto && (
+              <div className="bg-black/40 p-3 rounded text-sm mb-3">
+                {versiculoTexto}
+              </div>
+            )}
+
+            <div className="flex justify-between">
+              <button
+                onClick={() => setShowBiblia(false)}
+                className="text-neutral-400 text-sm"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={() => {
+                  setPasaje(
+                    `${libro} ${capitulo}:${versiculo}`
+                  );
+                  setShowBiblia(false);
+                }}
+                className="bg-green-600 px-4 py-2 rounded text-sm"
+              >
+                Usar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* SUBTEMAS */}
+      <h2 className="text-2xl font-bold mb-4">
+        Estructura del Sermón
+      </h2>
+
+      <div className="space-y-8">
+        {subtemas.map((sub, i) => (
+          <div
+            key={i}
+            className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6"
+          >
+            <h3 className="font-bold mb-3">
+              {i === 0
+                ? "Tema / Punto principal"
+                : `Subtema ${i + 1}`}
+            </h3>
+
+            <input
+              placeholder="Título del subtema"
+              value={sub.titulo}
+              onChange={(e) =>
+                updateSubtema(i, "titulo", e.target.value)
+              }
+              className="w-full bg-neutral-800 p-3 rounded-xl mb-4"
+            />
+
+            <EditorSimple
+              value={sub.contenido}
+              onChange={(v) =>
+                updateSubtema(i, "contenido", v)
+              }
+            />
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={agregarSubtema}
+        className="mt-6 px-4 py-2 bg-green-600 rounded-xl"
+      >
+        + Agregar subtema
+      </button>
+
+      <button
+        onClick={guardarSermon}
+        className="mt-10 w-full py-4 bg-indigo-600 rounded-xl text-lg font-bold"
+      >
+        Guardar Sermón
+      </button>
     </main>
   );
 }
