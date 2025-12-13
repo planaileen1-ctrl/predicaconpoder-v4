@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
-/* ======== TEMAS GLOBALES ======== */
-@theme {
+/* ======== VARIABLES GLOBALES ======== */
+:root {
   --color-background: #000000;
   --color-foreground: #ffffff;
 }
@@ -11,6 +11,8 @@ html,
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
+  height: 100%;
+  margin: 0;
 }
 
 /* ======== ESTILOS PARA VIEWER PDF (OBLIGATORIO) ======== */

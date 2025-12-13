@@ -6,7 +6,7 @@ import { collection, addDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import EditorSimple from "@/components/EditorSimple";
 
-import bibleRVR from "@/data/bible.json"; // si no existe aún, puedes duplicar la RVR
+import bibleRVR from "@/data/bible.json";
 
 type Subtema = {
   titulo: string;
@@ -34,12 +34,6 @@ export default function CrearSermonPage() {
 
   const libros = Object.keys(bible as any);
 
-  const textoDetectado =
-    libro &&
-    capitulo &&
-    versiculo &&
-    (bible as any)?.[libro]?.[capitulo]?.[versiculo];
-
   /* ================= SUBTEMAS ================= */
   const [subtemas, setSubtemas] = useState<Subtema[]>([
     { titulo: "", contenido: "" },
@@ -59,6 +53,9 @@ export default function CrearSermonPage() {
     setSubtemas(copia);
   };
 
+  /* ================= CONCLUSIÓN ================= */
+  const [conclusion, setConclusion] = useState("");
+
   /* ================= GUARDAR ================= */
   const guardarSermon = async () => {
     const user = auth.currentUser;
@@ -71,6 +68,7 @@ export default function CrearSermonPage() {
       versiculoTexto,
       versionBiblia,
       subtemas,
+      conclusion, // 👈 NUEVO
       archivado: false,
       createdAt: Timestamp.now(),
     });
@@ -268,9 +266,21 @@ export default function CrearSermonPage() {
         + Agregar subtema
       </button>
 
+      {/* ================= CONCLUSIÓN ================= */}
+      <div className="mt-14 bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
+        <h2 className="text-2xl font-bold mb-4">
+          Conclusiones / Llamado final
+        </h2>
+
+        <EditorSimple
+          value={conclusion}
+          onChange={(v) => setConclusion(v)}
+        />
+      </div>
+
       <button
         onClick={guardarSermon}
-        className="mt-10 w-full py-4 bg-indigo-600 rounded-xl text-lg font-bold"
+        className="mt-12 w-full py-4 bg-indigo-600 rounded-xl text-lg font-bold"
       >
         Guardar Sermón
       </button>
