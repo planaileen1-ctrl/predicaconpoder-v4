@@ -87,6 +87,13 @@ const sections: Section[] = [
     href: "/plan-aileen-admin",
     gradient: "from-pink-500 to-rose-600",
   },
+  {
+  title: "Rifa PRO",
+  desc: "Crea rifas, vende números y gestiona sorteos de forma profesional.",
+  icon: "🎟️",
+  href: "/rifas",
+  gradient: "from-fuchsia-500 to-pink-600",
+},
 ];
 
 export default function DashboardPage() {
