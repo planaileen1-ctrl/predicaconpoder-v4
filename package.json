@@ -20,12 +20,8 @@
     "next": "16.0.7",
     "pdfjs-dist": "^3.11.174",
     "react": "^19.2.0",
-<<<<<<< HEAD
     "react-dom": "^19.2.0",
     "react-qr-code": "^2.0.18"
-=======
-    "react-dom": "^19.2.0"
->>>>>>> 6cbfe8eb99af253058a70e4e842a892eee014a76
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
