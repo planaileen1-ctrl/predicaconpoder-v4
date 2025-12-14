@@ -73,6 +73,7 @@ const sections: Section[] = [
   href: "/ingresos-gastos",
   gradient: "from-emerald-500 to-lime-600",
 },
+<<<<<<< HEAD
 {
   title: "Servicio Técnico",
   desc: "Registra el arreglo y mantenimiento de computadoras.",
@@ -80,6 +81,8 @@ const sections: Section[] = [
   href: "/servicio-tecnico",
   gradient: "from-sky-500 to-blue-700",
 },
+=======
+>>>>>>> 6cbfe8eb99af253058a70e4e842a892eee014a76
    {
     title: "Ajustes",
     desc: "Configura tu cuenta y preferencias.",
