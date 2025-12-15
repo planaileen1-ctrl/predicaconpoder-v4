@@ -8,6 +8,8 @@ import {
   onSnapshot,
   query,
   Timestamp,
+  deleteDoc,
+  doc,
 } from "firebase/firestore";
 
 type Estado = "RECIBIDO" | "ENTREGADO";
@@ -50,10 +52,11 @@ export default function ServicioTecnicoPage() {
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [qText, setQText] = useState("");
   const [fEstado, setFEstado] = useState<Estado | "TODOS">("TODOS");
+  const [borrandoId, setBorrandoId] = useState<string | null>(null);
 
   useEffect(() => {
     const ref = collection(db, "servicio_tecnico");
-    const q = query(ref); // ⬅️ SIN orderBy (clave)
+    const q = query(ref);
 
     const unsub = onSnapshot(q, (snap) => {
       const rows: Servicio[] = snap.docs.map((d) => {
@@ -68,28 +71,22 @@ export default function ServicioTecnicoPage() {
           id: d.id,
           codigo: data.codigo ?? d.id.slice(0, 8).toUpperCase(),
 
-          // 👤 Cliente (modelo viejo)
           clienteNombre: data.cliente ?? "",
           clienteTelefono: data.celular ?? "",
           clienteEmail: data.correo ?? "",
 
-          // 🖥️ Equipo (modelo viejo)
           equipoTipo: "PC",
           equipoMarca: data.categoria ?? "Equipo",
           equipoModelo: data.almacenamiento ?? "",
 
-          // 🧾 Resultado / problema
           problemaReportado: data.resultado ?? "",
 
-          // 💰 Costos
           presupuesto,
           anticipo,
           total,
 
-          // 📌 Estado
           estado: data.cierre ? "ENTREGADO" : "RECIBIDO",
 
-          // 📅 Fechas
           fechaIngreso: data.cierre?.fecha ?? undefined,
           fechaEntrega: data.cierre?.fecha ?? undefined,
         };
@@ -120,9 +117,28 @@ export default function ServicioTecnicoPage() {
     });
   }, [servicios, qText, fEstado]);
 
+  /* ================= BORRAR ================= */
+
+  const borrarServicio = async (id: string, codigo: string) => {
+    const ok = confirm(
+      `¿Seguro que deseas borrar el servicio ${codigo}?\n\nEsta acción NO se puede deshacer.`
+    );
+    if (!ok) return;
+
+    try {
+      setBorrandoId(id);
+      await deleteDoc(doc(db, "servicio_tecnico", id));
+    } catch (e) {
+      alert("Error al borrar el servicio");
+    } finally {
+      setBorrandoId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-4">
+      <div className="max-w-7xl mx-auto space-y-4">
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
@@ -141,6 +157,7 @@ export default function ServicioTecnicoPage() {
           </Link>
         </div>
 
+        {/* FILTROS */}
         <div className="grid md:grid-cols-3 gap-3">
           <input
             value={qText}
@@ -162,13 +179,15 @@ export default function ServicioTecnicoPage() {
           </select>
         </div>
 
+        {/* TABLA */}
         <div className="rounded-2xl border border-white/10 overflow-hidden">
-          <div className="hidden md:grid grid-cols-12 px-4 py-3 bg-white/5 text-xs uppercase opacity-80">
+          <div className="hidden md:grid grid-cols-14 px-4 py-3 bg-white/5 text-xs uppercase opacity-80">
             <div className="col-span-2">Código</div>
             <div className="col-span-3">Cliente</div>
             <div className="col-span-3">Equipo</div>
             <div className="col-span-2">Fecha</div>
             <div className="col-span-2">Estado</div>
+            <div className="col-span-2">Acciones</div>
           </div>
 
           <div className="divide-y divide-white/10">
@@ -178,28 +197,31 @@ export default function ServicioTecnicoPage() {
               </div>
             ) : (
               filtrados.map((s) => (
-                <Link
+                <div
                   key={s.id}
-                  href={`/servicio-tecnico/${s.id}`}
-                  className="block hover:bg-white/5"
+                  className="grid grid-cols-1 md:grid-cols-14 px-4 py-4 gap-2 hover:bg-white/5"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-12 px-4 py-4 gap-2">
-                    <div className="md:col-span-2 font-semibold">
+                  {/* LINK SOLO EN DATOS */}
+                  <Link
+                    href={`/servicio-tecnico/${s.id}`}
+                    className="contents"
+                  >
+                    <div className="md:col-span-2 font-semibold cursor-pointer">
                       {s.codigo}
                     </div>
 
-                    <div className="md:col-span-3">
+                    <div className="md:col-span-3 cursor-pointer">
                       <div>{s.clienteNombre}</div>
                       <div className="text-xs opacity-70">
                         {s.clienteTelefono}
                       </div>
                     </div>
 
-                    <div className="md:col-span-3 text-sm">
+                    <div className="md:col-span-3 text-sm cursor-pointer">
                       {s.equipoMarca} {s.equipoModelo}
                     </div>
 
-                    <div className="md:col-span-2 text-sm">
+                    <div className="md:col-span-2 text-sm cursor-pointer">
                       {fmtTs(s.fechaIngreso)}
                     </div>
 
@@ -208,8 +230,19 @@ export default function ServicioTecnicoPage() {
                         {s.estado}
                       </span>
                     </div>
+                  </Link>
+
+                  {/* ACCIONES */}
+                  <div className="md:col-span-2 flex items-center">
+                    <button
+                      onClick={() => borrarServicio(s.id, s.codigo)}
+                      disabled={borrandoId === s.id}
+                      className="text-xs px-3 py-1 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                    >
+                      {borrandoId === s.id ? "Borrando..." : "🗑️ Borrar"}
+                    </button>
                   </div>
-                </Link>
+                </div>
               ))
             )}
           </div>

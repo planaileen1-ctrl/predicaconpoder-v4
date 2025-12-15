@@ -39,22 +39,25 @@ export default function NuevoServicioPage() {
   const [codigo] = useState(generarCodigo());
   const [fechaIngreso] = useState(hoyISO());
 
-  // Cliente
+  // ✅ NUEVO: estado de guardado
+  const [guardado, setGuardado] = useState(false);
+
+  // 👤 Cliente
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteTelefono, setClienteTelefono] = useState("");
   const [clienteEmail, setClienteEmail] = useState("");
 
-  // Equipo
+  // 🖥️ Equipo
   const [equipoTipo, setEquipoTipo] = useState("Laptop");
   const [equipoMarca, setEquipoMarca] = useState("");
   const [equipoModelo, setEquipoModelo] = useState("");
   const [equipoSerie, setEquipoSerie] = useState("");
   const [accesorios, setAccesorios] = useState("");
 
-  // Problema
+  // 🧾 Problema
   const [problemaReportado, setProblemaReportado] = useState("");
 
-  // Costos
+  // 💰 Costos
   const [presupuesto, setPresupuesto] = useState("");
   const [anticipo, setAnticipo] = useState("");
 
@@ -74,7 +77,8 @@ export default function NuevoServicioPage() {
     if (!clienteTelefono.trim()) return setError("Falta el teléfono");
     if (!equipoMarca.trim()) return setError("Falta la marca del equipo");
     if (!equipoModelo.trim()) return setError("Falta el modelo del equipo");
-    if (!problemaReportado.trim()) return setError("Falta el problema reportado");
+    if (!problemaReportado.trim())
+      return setError("Falta el problema reportado");
 
     setGuardando(true);
 
@@ -110,7 +114,9 @@ export default function NuevoServicioPage() {
         total,
       });
 
-      router.push("/servicio-tecnico");
+      // ❌ NO redirige
+      // ✅ Se queda aquí
+      setGuardado(true);
     } catch (e: any) {
       setError("Error al guardar el servicio");
     } finally {
@@ -123,6 +129,7 @@ export default function NuevoServicioPage() {
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-3xl mx-auto space-y-4">
+        {/* HEADER */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
@@ -141,11 +148,17 @@ export default function NuevoServicioPage() {
           </button>
         </div>
 
-        {/* 🔑 INFO DEL SISTEMA */}
+        {/* INFO DEL SISTEMA */}
         <div className="rounded-2xl border border-white/10 p-4 text-sm">
           <div><strong>Código:</strong> {codigo}</div>
           <div><strong>Fecha de ingreso:</strong> {fechaIngreso}</div>
         </div>
+
+        {guardado && (
+          <div className="p-3 rounded-xl border border-green-500/30 bg-green-500/10 text-sm">
+            ✅ Servicio guardado correctamente
+          </div>
+        )}
 
         {error && (
           <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-sm">
@@ -156,71 +169,80 @@ export default function NuevoServicioPage() {
         {/* CLIENTE */}
         <div className="rounded-2xl border border-white/10 p-4 space-y-3">
           <h2 className="font-semibold">Cliente</h2>
-          <input
-            value={clienteNombre}
-            onChange={(e) => setClienteNombre(e.target.value)}
-            placeholder="Nombre"
-            className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10"
-          />
-          <input
-            value={clienteTelefono}
-            onChange={(e) => setClienteTelefono(e.target.value)}
-            placeholder="Teléfono"
-            className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10"
-          />
-          <input
-            value={clienteEmail}
-            onChange={(e) => setClienteEmail(e.target.value)}
-            placeholder="Email (opcional)"
-            className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10"
-          />
+          <input value={clienteNombre} onChange={(e) => setClienteNombre(e.target.value)} placeholder="Nombre" className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10" />
+          <input value={clienteTelefono} onChange={(e) => setClienteTelefono(e.target.value)} placeholder="Teléfono" className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10" />
+          <input value={clienteEmail} onChange={(e) => setClienteEmail(e.target.value)} placeholder="Email (opcional)" className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10" />
         </div>
 
         {/* EQUIPO */}
         <div className="rounded-2xl border border-white/10 p-4 space-y-3">
           <h2 className="font-semibold">Equipo</h2>
-          <select
-            value={equipoTipo}
-            onChange={(e) => setEquipoTipo(e.target.value)}
-            className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10"
-          >
+          <select value={equipoTipo} onChange={(e) => setEquipoTipo(e.target.value)} className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10">
             <option>Laptop</option>
             <option>PC</option>
             <option>All-in-One</option>
             <option>Impresora</option>
             <option>Otro</option>
           </select>
-          <input
-            value={equipoMarca}
-            onChange={(e) => setEquipoMarca(e.target.value)}
-            placeholder="Marca"
-            className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10"
-          />
-          <input
-            value={equipoModelo}
-            onChange={(e) => setEquipoModelo(e.target.value)}
-            placeholder="Modelo"
-            className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10"
-          />
+          <input value={equipoMarca} onChange={(e) => setEquipoMarca(e.target.value)} placeholder="Marca" className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10" />
+          <input value={equipoModelo} onChange={(e) => setEquipoModelo(e.target.value)} placeholder="Modelo" className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10" />
         </div>
 
         {/* PROBLEMA */}
         <div className="rounded-2xl border border-white/10 p-4 space-y-3">
           <h2 className="font-semibold">Problema reportado</h2>
-          <textarea
-            value={problemaReportado}
-            onChange={(e) => setProblemaReportado(e.target.value)}
-            className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10 min-h-[100px]"
-          />
+          <textarea value={problemaReportado} onChange={(e) => setProblemaReportado(e.target.value)} className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10 min-h-[100px]" />
         </div>
 
+        {/* COSTOS */}
+        <div className="rounded-2xl border border-white/10 p-4 space-y-3">
+          <h2 className="font-semibold">Costos</h2>
+          <input value={presupuesto} onChange={(e) => setPresupuesto(e.target.value)} placeholder="Costo total" className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10" />
+          <input value={anticipo} onChange={(e) => setAnticipo(e.target.value)} placeholder="Abono" className="w-full px-4 py-2 rounded-xl bg-black/30 border border-white/10" />
+          <div><strong>Saldo pendiente:</strong> {total}</div>
+        </div>
+
+        {/* ACCIONES */}
         <button
           onClick={guardar}
-          disabled={guardando}
+          disabled={guardando || guardado}
           className="w-full px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10"
         >
-          {guardando ? "Guardando..." : "Guardar servicio"}
+          {guardando ? "Guardando..." : guardado ? "Guardado" : "Guardar servicio"}
         </button>
+
+        <div className="grid md:grid-cols-2 gap-3">
+          <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10">
+            🖨️ Imprimir
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const texto = `
+Servicio Técnico
+Código: ${codigo}
+Fecha: ${fechaIngreso}
+
+Cliente: ${clienteNombre}
+Equipo: ${equipoMarca} ${equipoModelo}
+
+Problema:
+${problemaReportado}
+
+Costo: ${presupuesto}
+Abono: ${anticipo}
+Saldo: ${total}
+              `.trim();
+
+              const url = `https://wa.me/593${clienteTelefono}?text=${encodeURIComponent(texto)}`;
+              window.open(url, "_blank");
+            }}
+            className="px-4 py-3 rounded-2xl bg-green-600/80 hover:bg-green-600 border border-green-600"
+          >
+            📲 Enviar por WhatsApp
+          </button>
+        </div>
       </div>
     </div>
   );
