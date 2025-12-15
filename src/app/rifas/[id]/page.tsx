@@ -7,13 +7,14 @@ import {
   getDoc,
   collection,
   getDocs,
-  setDoc,
   Timestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 
+/* ================= TIPOS ================= */
 type Numero = {
-  estado: "disponible" | "reservado" | "pagado";
+  estado: "disponible" | "reservado" | "pendiente_pago" | "pagado";
   nombre?: string;
   telefono?: string;
 };
@@ -24,10 +25,14 @@ export default function RifaPublicaPage() {
 
   const [rifa, setRifa] = useState<any>(null);
   const [numeros, setNumeros] = useState<Record<string, Numero>>({});
-  const [seleccionado, setSeleccionado] = useState<string | null>(null);
 
+  const [seleccionados, setSeleccionados] = useState<string[]>([]);
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
+
+  const [mensajeTransferencia, setMensajeTransferencia] = useState<string | null>(
+    null
+  );
 
   /* ================= CARGAR RIFA ================= */
   useEffect(() => {
@@ -63,81 +68,102 @@ export default function RifaPublicaPage() {
   }
 
   /* ================= GRID ================= */
-  const total = rifa.totalNumeros;
-  const lista = Array.from({ length: total }, (_, i) =>
+  const lista = Array.from({ length: rifa.totalNumeros }, (_, i) =>
     String(i + 1).padStart(3, "0")
   );
 
-  /* ================= RESERVAR ================= */
-  const reservarNumero = async () => {
-    if (rifa.estado === "sorteada") {
-      alert("Esta rifa ya fue sorteada.");
+  const totalPagar = rifa.precioNumero * seleccionados.length;
+
+  /* ================= TOGGLE ================= */
+  const toggleNumero = (n: string) => {
+    setSeleccionados((prev) =>
+      prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]
+    );
+  };
+
+  /* ================= TRANSFERENCIA ================= */
+  const reservarPorTransferencia = async () => {
+    if (!nombre || !telefono || seleccionados.length === 0) {
+      alert("Selecciona números y completa tus datos");
       return;
     }
 
-    if (!seleccionado || !nombre || !telefono) {
-      alert("Completa tu nombre y teléfono");
-      return;
-    }
+    const batch = writeBatch(db);
 
-    await setDoc(
-      doc(db, "rifas", id as string, "numeros", seleccionado),
-      {
-        estado: "reservado",
+    seleccionados.forEach((n) => {
+      batch.set(doc(db, "rifas", id as string, "numeros", n), {
+        estado: "pendiente_pago",
         nombre,
         telefono,
-        reservadoAt: Timestamp.now(),
+        metodoPago: "transferencia",
+        creadoAt: Timestamp.now(),
+      });
+    });
+
+    await batch.commit();
+
+    setMensajeTransferencia(
+      `Sus números han sido separados, pero para mantenerlos debe realizar el pago de: $${totalPagar}.\n\n` +
+        `Puede hacer la transferencia al Banco de Guayaquil,\n` +
+        `Cuenta de ahorro 50174323\n` +
+        `A nombre de Olga Jiménez Alvarado.`
+    );
+
+    setSeleccionados([]);
+    setNombre("");
+    setTelefono("");
+  };
+
+  /* ================= PAYPHONE (ARREGLADO) ================= */
+  const pagarConPayPhone = async () => {
+    if (!nombre || !telefono || seleccionados.length === 0) {
+      alert("Selecciona números y completa tus datos");
+      return;
+    }
+
+    const res = await fetch(
+      "https://us-central1-predicaconpoder-a8aa0.cloudfunctions.net/createPayphonePayment",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rifaId: id,
+          numero: seleccionados.join(","), // ✅ PayPhone recibe string
+          nombre,
+          telefono,
+          monto: totalPagar,
+        }),
       }
     );
 
-    setNumeros((prev) => ({
-      ...prev,
-      [seleccionado]: {
-        estado: "reservado",
-        nombre,
-        telefono,
-      },
-    }));
+    const data = await res.json();
 
-    setSeleccionado(null);
-    setNombre("");
-    setTelefono("");
+    if (!data.paymentUrl) {
+      alert("Error al generar pago");
+      return;
+    }
 
-    alert("Número reservado. Contacta al organizador para el pago.");
+    window.location.href = data.paymentUrl;
   };
 
+  /* ================= COLORES ================= */
   const color = (n: string) => {
     const e = numeros[n]?.estado;
+    if (e === "pendiente_pago") return "bg-yellow-500";
     if (e === "reservado") return "bg-amber-500";
     if (e === "pagado") return "bg-red-600";
+    if (seleccionados.includes(n)) return "bg-indigo-600";
     return "bg-emerald-600 hover:bg-emerald-500";
   };
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white p-6">
       <div className="max-w-5xl mx-auto">
-        {/* ================= INFO ================= */}
         <h1 className="text-3xl font-bold mb-2">{rifa.titulo}</h1>
         <p className="text-neutral-300 mb-1">🎁 {rifa.premio}</p>
-        <p className="mb-6">💵 ${rifa.precioNumero} por número</p>
+        <p className="mb-4">💵 ${rifa.precioNumero} por número</p>
 
-        {/* ===== GANADOR (SI YA SE SORTEÓ) ===== */}
-        {rifa.estado === "sorteada" && rifa.ganador && (
-          <div className="mb-8 p-6 bg-neutral-900 border border-neutral-800 rounded-2xl">
-            <h2 className="text-xl font-bold mb-2">🏆 Ganador</h2>
-            <p className="text-neutral-200 text-lg">
-              Número ganador:{" "}
-              <span className="font-bold text-pink-400">
-                {rifa.ganador.numero}
-              </span>
-            </p>
-            <p className="text-neutral-400 mt-1">
-              {rifa.ganador.nombre}
-            </p>
-          </div>
-        )}
-
-        {/* BOTÓN ADMIN */}
+        {/* ✅ PANEL ADMIN (SOLO TÚ) */}
         {rifa.creadorUid === auth.currentUser?.uid && (
           <button
             onClick={() => router.push(`/rifas/${id}/admin`)}
@@ -147,15 +173,21 @@ export default function RifaPublicaPage() {
           </button>
         )}
 
-        {/* ================= FORMULARIO ================= */}
-        {seleccionado && rifa.estado !== "sorteada" && (
-          <div
-            id="form-reserva"
-            className="mb-10 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md"
-          >
-            <h2 className="text-xl font-bold mb-4">
-              Reservar número {seleccionado}
+        {/* MENSAJE TRANSFERENCIA */}
+        {mensajeTransferencia && (
+          <div className="mb-8 bg-emerald-900/30 border border-emerald-600 rounded-2xl p-6 whitespace-pre-line">
+            {mensajeTransferencia}
+          </div>
+        )}
+
+        {/* FORMULARIO */}
+        {seleccionados.length > 0 && (
+          <div className="mb-10 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md">
+            <h2 className="text-xl font-bold mb-2">
+              Números seleccionados: {seleccionados.join(", ")}
             </h2>
+
+            <p className="mb-4">Total: ${totalPagar}</p>
 
             <input
               placeholder="Tu nombre"
@@ -171,51 +203,39 @@ export default function RifaPublicaPage() {
               className="w-full bg-neutral-800 p-3 rounded mb-4"
             />
 
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3">
               <button
-                onClick={() => setSeleccionado(null)}
-                className="px-4 py-3 bg-neutral-700 rounded-xl"
+                onClick={pagarConPayPhone}
+                className="bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl font-bold"
               >
-                Cancelar
+                💳 Pagar con PayPhone
               </button>
 
               <button
-                onClick={reservarNumero}
-                className="flex-1 bg-pink-600 hover:bg-pink-700 py-3 rounded-xl font-bold"
+                onClick={reservarPorTransferencia}
+                className="bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl font-bold"
               >
-                Reservar
+                🏦 Transferencia bancaria
               </button>
             </div>
           </div>
         )}
 
-        {/* ================= GRID ================= */}
+        {/* GRID */}
         <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
           {lista.map((n) => {
             const bloqueado =
-              rifa.estado === "sorteada" ||
-              numeros[n]?.estado === "reservado" ||
+              numeros[n]?.estado === "pendiente_pago" ||
               numeros[n]?.estado === "pagado";
 
             return (
               <button
                 key={n}
                 disabled={bloqueado}
-                onClick={() => {
-                  if (rifa.estado === "sorteada") {
-                    alert("Esta rifa ya fue sorteada.");
-                    return;
-                  }
-                  setSeleccionado(n);
-                  setTimeout(() => {
-                    document
-                      .getElementById("form-reserva")
-                      ?.scrollIntoView({ behavior: "smooth" });
-                  }, 50);
-                }}
+                onClick={() => toggleNumero(n)}
                 className={`h-12 rounded-xl font-bold text-sm ${color(n)} ${
-                  seleccionado === n ? "ring-4 ring-white" : ""
-                } ${bloqueado ? "opacity-70 cursor-not-allowed" : ""}`}
+                  bloqueado ? "opacity-60 cursor-not-allowed" : ""
+                }`}
               >
                 {n}
               </button>

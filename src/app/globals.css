@@ -1,74 +1,22 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* ================================
-   VARIABLES GLOBALES
-================================ */
+/* ======== VARIABLES GLOBALES ======== */
 :root {
   --color-background: #000000;
   --color-foreground: #ffffff;
 }
 
-/* ================================
-   ESTILOS BASE
-================================ */
+/* ======== ESTILOS GLOBALES ======== */
 html,
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   height: 100%;
   margin: 0;
-  padding: 0;
 }
 
-/* ================================
-   INPUTS / SELECTS
-================================ */
-.input {
-  width: 100%;
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  background-color: #111111;
-  color: #ffffff;
-  border: 1px solid #444444;
-  outline: none;
-}
-
-.input::placeholder {
-  color: #888888;
-}
-
-.input option {
-  background-color: #ffffff;
-  color: #000000;
-}
-
-/* ================================
-   PRINT – RECIBOS
-================================ */
-@media print {
-  body {
-    background: white !important;
-  }
-
-  .no-print {
-    display: none !important;
-  }
-
-  .recibo-cierre {
-    margin: 0;
-    padding: 12px;
-    width: 80mm;
-    background: white;
-    color: black;
-    font-size: 12px;
-  }
-}
-
-/* ================================
-   REACT PDF VIEWER (OBLIGATORIO)
-   ⚠️ SIEMPRE AL FINAL
-================================ */
+/* ======== ESTILOS PARA VIEWER PDF (OBLIGATORIO) ======== */
+/* Estos imports NO pueden estar dentro de un Client Component
+   porque rompen la compilación en Next.js/Vercel */
 @import "@react-pdf-viewer/core/lib/styles/index.css";
 @import "@react-pdf-viewer/default-layout/lib/styles/index.css";
