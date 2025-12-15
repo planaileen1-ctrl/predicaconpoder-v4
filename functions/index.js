@@ -9,7 +9,7 @@ const corsHandler = cors({ origin: true });
 
 /**
  * CREATE PAYPHONE PAYMENT
- * POST ONLY
+ * (GEN 1 – ESTABLE)
  */
 exports.createPayphonePayment = functions
   .region("us-central1")
@@ -23,7 +23,7 @@ exports.createPayphonePayment = functions
 
         const { rifaId, numeros, nombre, telefono, monto } = req.body;
 
-        // 🔒 VALIDACIONES DURAS
+        // 🔒 VALIDACIONES
         if (
           !rifaId ||
           !Array.isArray(numeros) ||
@@ -40,17 +40,16 @@ exports.createPayphonePayment = functions
 
         // 🔑 TOKEN DESDE .env
         const PAYPHONE_TOKEN = process.env.PAYPHONE_TOKEN;
-
         if (!PAYPHONE_TOKEN) {
           return res.status(500).json({
-            error: "PAYPHONE_TOKEN no configurado en .env",
+            error: "PAYPHONE_TOKEN no configurado",
           });
         }
 
         // 💰 MONTO EN CENTAVOS
         const amountCents = Math.round(monto * 100);
 
-        // 📦 PAYLOAD PAYPHONE (ESTRUCTURA CORRECTA)
+        // 📦 PAYLOAD PAYPHONE (BOTÓN DE PAGO)
         const payload = {
           amount: amountCents,
           amountWithoutTax: amountCents,
@@ -62,7 +61,6 @@ exports.createPayphonePayment = functions
 
         console.log("➡️ PayPhone payload:", payload);
 
-        // 🚀 LLAMADA A PAYPHONE
         const response = await axios.post(
           "https://pay.payphonetodoesposible.com/api/button/Prepare",
           payload,
@@ -77,7 +75,6 @@ exports.createPayphonePayment = functions
 
         console.log("⬅️ PayPhone response:", response.data);
 
-        // ❌ VALIDACIÓN RESPUESTA
         if (!response.data || !response.data.paymentUrl) {
           return res.status(500).json({
             error: "PayPhone no devolvió paymentUrl",
@@ -85,7 +82,7 @@ exports.createPayphonePayment = functions
           });
         }
 
-        // ✅ RESPUESTA FINAL AL FRONTEND
+        // ✅ RESPUESTA AL FRONTEND
         return res.status(200).json({
           paymentUrl: response.data.paymentUrl,
         });

@@ -72,6 +72,7 @@ export default function RifaPublicaPage() {
     String(i + 1).padStart(3, "0")
   );
 
+<<<<<<< HEAD
   const totalPagar = rifa.precioNumero * seleccionados.length;
 
   /* ================= TOGGLE ================= */
@@ -85,6 +86,12 @@ export default function RifaPublicaPage() {
   const reservarPorTransferencia = async () => {
     if (!nombre || !telefono || seleccionados.length === 0) {
       alert("Selecciona números y completa tus datos");
+=======
+  /* ================= RESERVA MANUAL ================= */
+  const reservarNumero = async () => {
+    if (rifa.estado === "sorteada") {
+      alert("Esta rifa ya fue sorteada.");
+>>>>>>> a707d1dda4b4e47d0cd94a10aef1484ca1c28026
       return;
     }
 
@@ -146,6 +153,86 @@ export default function RifaPublicaPage() {
     window.location.href = data.paymentUrl;
   };
 
+<<<<<<< HEAD
+=======
+  /* ================= PAYPHONE (DEBUG) ================= */
+  const pagarConPayPhone = async () => {
+    if (!seleccionado || !nombre || !telefono) {
+      alert("Completa nombre y teléfono");
+      return;
+    }
+
+    try {
+      console.log("➡️ Enviando a PayPhone:", {
+        rifaId: id,
+        numero: seleccionado,
+        nombre,
+        telefono,
+        monto: rifa.precioNumero,
+      });
+
+      const res = await fetch(
+        "https://us-central1-predicaconpoder-a8aa0.cloudfunctions.net/createPayphonePayment",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rifaId: id,
+            numero: seleccionado,
+            nombre,
+            telefono,
+            monto: rifa.precioNumero,
+          }),
+        }
+      );
+
+      console.log("⬅️ STATUS:", res.status);
+
+      const text = await res.text();
+      console.log("⬅️ RESPUESTA RAW:", text);
+
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        alert(
+          "Respuesta NO es JSON. Revisa Firebase Logs.\n\nRespuesta:\n" +
+            text
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        alert(
+          `Error PayPhone HTTP ${res.status}\n\n` +
+            JSON.stringify(data, null, 2)
+        );
+        return;
+      }
+
+      if (!data.paymentUrl) {
+        alert(
+          "No se recibió paymentUrl.\n\n" +
+            JSON.stringify(data, null, 2)
+        );
+        return;
+      }
+
+      console.log("✅ Redirigiendo a PayPhone:", data.paymentUrl);
+
+      window.location.href = data.paymentUrl;
+    } catch (e: any) {
+      console.error("❌ ERROR PAYPHONE:", e);
+      alert(
+        "Error PayPhone (ver consola F12)\n\nMensaje:\n" +
+          (e?.message || "sin mensaje")
+      );
+    }
+  };
+
+>>>>>>> a707d1dda4b4e47d0cd94a10aef1484ca1c28026
   /* ================= COLORES ================= */
   const color = (n: string) => {
     const e = numeros[n]?.estado;
@@ -163,7 +250,27 @@ export default function RifaPublicaPage() {
         <p className="text-neutral-300 mb-1">🎁 {rifa.premio}</p>
         <p className="mb-4">💵 ${rifa.precioNumero} por número</p>
 
+<<<<<<< HEAD
         {/* ✅ PANEL ADMIN (SOLO TÚ) */}
+=======
+        {/* ===== GANADOR ===== */}
+        {rifa.estado === "sorteada" && rifa.ganador && (
+          <div className="mb-8 p-6 bg-neutral-900 border border-neutral-800 rounded-2xl">
+            <h2 className="text-xl font-bold mb-2">🏆 Ganador</h2>
+            <p className="text-neutral-200 text-lg">
+              Número ganador:{" "}
+              <span className="font-bold text-pink-400">
+                {rifa.ganador.numero}
+              </span>
+            </p>
+            <p className="text-neutral-400 mt-1">
+              {rifa.ganador.nombre}
+            </p>
+          </div>
+        )}
+
+        {/* BOTÓN ADMIN */}
+>>>>>>> a707d1dda4b4e47d0cd94a10aef1484ca1c28026
         {rifa.creadorUid === auth.currentUser?.uid && (
           <button
             onClick={() => router.push(`/rifas/${id}/admin`)}
@@ -173,6 +280,7 @@ export default function RifaPublicaPage() {
           </button>
         )}
 
+<<<<<<< HEAD
         {/* MENSAJE TRANSFERENCIA */}
         {mensajeTransferencia && (
           <div className="mb-8 bg-emerald-900/30 border border-emerald-600 rounded-2xl p-6 whitespace-pre-line">
@@ -185,6 +293,16 @@ export default function RifaPublicaPage() {
           <div className="mb-10 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md">
             <h2 className="text-xl font-bold mb-2">
               Números seleccionados: {seleccionados.join(", ")}
+=======
+        {/* ================= FORMULARIO ================= */}
+        {seleccionado && rifa.estado !== "sorteada" && (
+          <div
+            id="form-reserva"
+            className="mb-10 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md"
+          >
+            <h2 className="text-xl font-bold mb-4">
+              Número {seleccionado}
+>>>>>>> a707d1dda4b4e47d0cd94a10aef1484ca1c28026
             </h2>
 
             <p className="mb-4">Total: ${totalPagar}</p>
@@ -212,10 +330,24 @@ export default function RifaPublicaPage() {
               </button>
 
               <button
+<<<<<<< HEAD
                 onClick={reservarPorTransferencia}
                 className="bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl font-bold"
               >
                 🏦 Transferencia bancaria
+=======
+                onClick={pagarConPayPhone}
+                className="bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl font-bold"
+              >
+                💳 Pagar con PayPhone
+              </button>
+
+              <button
+                onClick={reservarNumero}
+                className="bg-pink-600 hover:bg-pink-700 py-3 rounded-xl font-bold"
+              >
+                Reservar sin pagar
+>>>>>>> a707d1dda4b4e47d0cd94a10aef1484ca1c28026
               </button>
             </div>
           </div>
@@ -225,6 +357,10 @@ export default function RifaPublicaPage() {
         <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
           {lista.map((n) => {
             const bloqueado =
+<<<<<<< HEAD
+=======
+              rifa.estado === "sorteada" ||
+>>>>>>> a707d1dda4b4e47d0cd94a10aef1484ca1c28026
               numeros[n]?.estado === "pendiente_pago" ||
               numeros[n]?.estado === "pagado";
 
@@ -232,7 +368,19 @@ export default function RifaPublicaPage() {
               <button
                 key={n}
                 disabled={bloqueado}
+<<<<<<< HEAD
                 onClick={() => toggleNumero(n)}
+=======
+                onClick={() => {
+                  if (rifa.estado === "sorteada") return;
+                  setSeleccionado(n);
+                  setTimeout(() => {
+                    document
+                      .getElementById("form-reserva")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  }, 50);
+                }}
+>>>>>>> a707d1dda4b4e47d0cd94a10aef1484ca1c28026
                 className={`h-12 rounded-xl font-bold text-sm ${color(n)} ${
                   bloqueado ? "opacity-60 cursor-not-allowed" : ""
                 }`}
