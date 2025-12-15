@@ -1,0 +1,105 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  Timestamp,
+} from "firebase/firestore";
+
+type Servicio = {
+  id: string;
+  codigo: string;
+  clienteNombre: string;
+  equipoMarca: string;
+  equipoModelo: string;
+  fechaEntrega?: Timestamp;
+};
+
+function fmt(ts?: Timestamp) {
+  if (!ts) return "";
+  const d = ts.toDate();
+  return d.toISOString().split("T")[0];
+}
+
+export default function CierreServiciosPage() {
+  const [items, setItems] = useState<Servicio[]>([]);
+
+  useEffect(() => {
+    const ref = collection(db, "servicio_tecnico");
+    const q = query(
+      ref,
+      where("estado", "==", "ENTREGADO"),
+      orderBy("fechaEntrega", "desc")
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      const rows = snap.docs.map((d) => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          codigo: data.codigo ?? d.id.slice(0, 8).toUpperCase(),
+          clienteNombre: data.clienteNombre ?? "",
+          equipoMarca: data.equipoMarca ?? "",
+          equipoModelo: data.equipoModelo ?? "",
+          fechaEntrega: data.fechaEntrega,
+        };
+      });
+      setItems(rows);
+    });
+
+    return () => unsub();
+  }, []);
+
+  return (
+    <div className="min-h-screen p-6 md:p-10">
+      <div className="max-w-5xl mx-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Cierre de servicios</h1>
+            <p className="text-sm opacity-80">
+              Equipos entregados al cliente
+            </p>
+          </div>
+          <Link
+            href="/servicio-tecnico/menu"
+            className="px-4 py-2 rounded-xl bg-white/10 border border-white/10"
+          >
+            ← Volver al menú
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 overflow-hidden">
+          {items.length === 0 ? (
+            <div className="p-6 text-sm opacity-80">
+              No hay servicios cerrados.
+            </div>
+          ) : (
+            <div className="divide-y divide-white/10">
+              {items.map((s) => (
+                <Link
+                  key={s.id}
+                  href={`/servicio-tecnico/${s.id}`}
+                  className="block hover:bg-white/5 p-4"
+                >
+                  <div className="font-semibold">
+                    {s.codigo} · {s.clienteNombre}
+                  </div>
+                  <div className="text-sm opacity-80">
+                    {s.equipoMarca} {s.equipoModelo} — Entregado:{" "}
+                    {fmt(s.fechaEntrega)}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

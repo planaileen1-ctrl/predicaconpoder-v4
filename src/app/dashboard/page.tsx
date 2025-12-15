@@ -73,6 +73,13 @@ const sections: Section[] = [
   href: "/ingresos-gastos",
   gradient: "from-emerald-500 to-lime-600",
 },
+{
+  title: "Servicio Técnico",
+  desc: "Gestión de reparación de computadoras",
+  icon: "🛠️",
+  href: "/servicio-tecnico/menu",
+  gradient: "from-slate-600 to-zinc-800",
+},
    {
     title: "Ajustes",
     desc: "Configura tu cuenta y preferencias.",
