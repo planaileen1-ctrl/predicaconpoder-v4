@@ -12,8 +12,9 @@ import {
 } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 
+/* ================= TIPOS ================= */
 type Numero = {
-  estado: "disponible" | "reservado" | "pagado";
+  estado: "disponible" | "reservado" | "pendiente_pago" | "pagado";
   nombre?: string;
   telefono?: string;
 };
@@ -68,7 +69,7 @@ export default function RifaPublicaPage() {
     String(i + 1).padStart(3, "0")
   );
 
-  /* ================= RESERVAR ================= */
+  /* ================= RESERVA MANUAL ================= */
   const reservarNumero = async () => {
     if (rifa.estado === "sorteada") {
       alert("Esta rifa ya fue sorteada.");
@@ -106,8 +107,87 @@ export default function RifaPublicaPage() {
     alert("Número reservado. Contacta al organizador para el pago.");
   };
 
+  /* ================= PAYPHONE (DEBUG) ================= */
+  const pagarConPayPhone = async () => {
+    if (!seleccionado || !nombre || !telefono) {
+      alert("Completa nombre y teléfono");
+      return;
+    }
+
+    try {
+      console.log("➡️ Enviando a PayPhone:", {
+        rifaId: id,
+        numero: seleccionado,
+        nombre,
+        telefono,
+        monto: rifa.precioNumero,
+      });
+
+      const res = await fetch(
+        "https://us-central1-predicaconpoder-a8aa0.cloudfunctions.net/createPayphonePayment",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rifaId: id,
+            numero: seleccionado,
+            nombre,
+            telefono,
+            monto: rifa.precioNumero,
+          }),
+        }
+      );
+
+      console.log("⬅️ STATUS:", res.status);
+
+      const text = await res.text();
+      console.log("⬅️ RESPUESTA RAW:", text);
+
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        alert(
+          "Respuesta NO es JSON. Revisa Firebase Logs.\n\nRespuesta:\n" +
+            text
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        alert(
+          `Error PayPhone HTTP ${res.status}\n\n` +
+            JSON.stringify(data, null, 2)
+        );
+        return;
+      }
+
+      if (!data.paymentUrl) {
+        alert(
+          "No se recibió paymentUrl.\n\n" +
+            JSON.stringify(data, null, 2)
+        );
+        return;
+      }
+
+      console.log("✅ Redirigiendo a PayPhone:", data.paymentUrl);
+
+      window.location.href = data.paymentUrl;
+    } catch (e: any) {
+      console.error("❌ ERROR PAYPHONE:", e);
+      alert(
+        "Error PayPhone (ver consola F12)\n\nMensaje:\n" +
+          (e?.message || "sin mensaje")
+      );
+    }
+  };
+
+  /* ================= COLORES ================= */
   const color = (n: string) => {
     const e = numeros[n]?.estado;
+    if (e === "pendiente_pago") return "bg-yellow-500";
     if (e === "reservado") return "bg-amber-500";
     if (e === "pagado") return "bg-red-600";
     return "bg-emerald-600 hover:bg-emerald-500";
@@ -121,7 +201,7 @@ export default function RifaPublicaPage() {
         <p className="text-neutral-300 mb-1">🎁 {rifa.premio}</p>
         <p className="mb-6">💵 ${rifa.precioNumero} por número</p>
 
-        {/* ===== GANADOR (SI YA SE SORTEÓ) ===== */}
+        {/* ===== GANADOR ===== */}
         {rifa.estado === "sorteada" && rifa.ganador && (
           <div className="mb-8 p-6 bg-neutral-900 border border-neutral-800 rounded-2xl">
             <h2 className="text-xl font-bold mb-2">🏆 Ganador</h2>
@@ -154,7 +234,7 @@ export default function RifaPublicaPage() {
             className="mb-10 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md"
           >
             <h2 className="text-xl font-bold mb-4">
-              Reservar número {seleccionado}
+              Número {seleccionado}
             </h2>
 
             <input
@@ -171,7 +251,7 @@ export default function RifaPublicaPage() {
               className="w-full bg-neutral-800 p-3 rounded mb-4"
             />
 
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3">
               <button
                 onClick={() => setSeleccionado(null)}
                 className="px-4 py-3 bg-neutral-700 rounded-xl"
@@ -180,10 +260,17 @@ export default function RifaPublicaPage() {
               </button>
 
               <button
-                onClick={reservarNumero}
-                className="flex-1 bg-pink-600 hover:bg-pink-700 py-3 rounded-xl font-bold"
+                onClick={pagarConPayPhone}
+                className="bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl font-bold"
               >
-                Reservar
+                💳 Pagar con PayPhone
+              </button>
+
+              <button
+                onClick={reservarNumero}
+                className="bg-pink-600 hover:bg-pink-700 py-3 rounded-xl font-bold"
+              >
+                Reservar sin pagar
               </button>
             </div>
           </div>
@@ -194,7 +281,7 @@ export default function RifaPublicaPage() {
           {lista.map((n) => {
             const bloqueado =
               rifa.estado === "sorteada" ||
-              numeros[n]?.estado === "reservado" ||
+              numeros[n]?.estado === "pendiente_pago" ||
               numeros[n]?.estado === "pagado";
 
             return (
@@ -202,10 +289,7 @@ export default function RifaPublicaPage() {
                 key={n}
                 disabled={bloqueado}
                 onClick={() => {
-                  if (rifa.estado === "sorteada") {
-                    alert("Esta rifa ya fue sorteada.");
-                    return;
-                  }
+                  if (rifa.estado === "sorteada") return;
                   setSeleccionado(n);
                   setTimeout(() => {
                     document
