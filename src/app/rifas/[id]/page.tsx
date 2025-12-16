@@ -80,7 +80,15 @@ export default function RifaPublicaPage() {
     );
   };
 
-  /* ================= TRANSFERENCIA ================= */
+  /* ================= RESET ================= */
+  const resetSeleccion = () => {
+    setSeleccionados([]);
+    setNombre("");
+    setTelefono("");
+    setMensajeTransferencia(null);
+  };
+
+  /* ================= TRANSFERENCIA (ÚNICO MÉTODO) ================= */
   const reservarPorTransferencia = async () => {
     if (!nombre || !telefono || seleccionados.length === 0) {
       alert("Selecciona números y completa tus datos");
@@ -101,48 +109,15 @@ export default function RifaPublicaPage() {
 
     await batch.commit();
 
+    // MENSAJE EXACTO COMO PEDISTE
     setMensajeTransferencia(
-      `Sus números han sido separados.\n\n` +
-        `Para mantenerlos debe realizar el pago de: $${totalPagar}.\n\n` +
-        `Banco de Guayaquil\nCuenta de ahorro: 50174323\n` +
-        `A nombre de Olga Jiménez Alvarado.`
+      "Acabas de separar tus números, ahora haz el depósito a la cuenta de ahorro #55443713 del Banco de Guayaquil a nombre de Olga Jiménez Alvarado.\n\nEnvía tu comprobante al 0961079919."
     );
 
+    // Ocultar formulario
     setSeleccionados([]);
     setNombre("");
     setTelefono("");
-  };
-
-  /* ================= PAYPHONE ================= */
-  const pagarConPayPhone = async () => {
-    if (!nombre || !telefono || seleccionados.length === 0) {
-      alert("Selecciona números y completa tus datos");
-      return;
-    }
-
-    const res = await fetch(
-      "https://us-central1-predicaconpoder-a8aa0.cloudfunctions.net/createPayphonePayment",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rifaId: id,
-          numero: seleccionados.join(","),
-          nombre,
-          telefono,
-          monto: totalPagar,
-        }),
-      }
-    );
-
-    const data = await res.json();
-
-    if (!data.paymentUrl) {
-      alert("Error al generar pago");
-      return;
-    }
-
-    window.location.href = data.paymentUrl;
   };
 
   /* ================= COLORES ================= */
@@ -162,20 +137,6 @@ export default function RifaPublicaPage() {
         <p className="text-neutral-300 mb-1">🎁 {rifa.premio}</p>
         <p className="mb-4">💵 ${rifa.precioNumero} por número</p>
 
-        {/* ===== GANADOR ===== */}
-        {rifa.estado === "sorteada" && rifa.ganador && (
-          <div className="mb-8 p-6 bg-neutral-900 border border-neutral-800 rounded-2xl">
-            <h2 className="text-xl font-bold mb-2">🏆 Ganador</h2>
-            <p className="text-lg">
-              Número ganador:{" "}
-              <span className="text-pink-400 font-bold">
-                {rifa.ganador.numero}
-              </span>
-            </p>
-            <p className="text-neutral-400">{rifa.ganador.nombre}</p>
-          </div>
-        )}
-
         {/* PANEL ADMIN */}
         {rifa.creadorUid === auth.currentUser?.uid && (
           <button
@@ -188,19 +149,26 @@ export default function RifaPublicaPage() {
 
         {/* MENSAJE TRANSFERENCIA */}
         {mensajeTransferencia && (
-          <div className="mb-8 bg-emerald-900/30 border border-emerald-600 rounded-2xl p-6 whitespace-pre-line">
+          <div className="mb-8 bg-emerald-900/30 border border-emerald-600 rounded-2xl p-6 whitespace-pre-line text-lg">
             {mensajeTransferencia}
           </div>
         )}
 
         {/* FORMULARIO */}
-        {seleccionados.length > 0 && rifa.estado !== "sorteada" && (
+        {seleccionados.length > 0 && !mensajeTransferencia && (
           <div className="mb-10 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md">
             <h2 className="text-xl font-bold mb-2">
               Números: {seleccionados.join(", ")}
             </h2>
 
-            <p className="mb-4">Total: ${totalPagar}</p>
+            <p className="mb-2">Total: ${totalPagar}</p>
+
+            <button
+              onClick={resetSeleccion}
+              className="mb-4 w-full bg-neutral-700 hover:bg-neutral-600 py-2 rounded-lg text-sm"
+            >
+              🔄 Cambiar selección
+            </button>
 
             <input
               placeholder="Tu nombre"
@@ -216,21 +184,12 @@ export default function RifaPublicaPage() {
               className="w-full bg-neutral-800 p-3 rounded mb-4"
             />
 
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={pagarConPayPhone}
-                className="bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl font-bold"
-              >
-                💳 Pagar con PayPhone
-              </button>
-
-              <button
-                onClick={reservarPorTransferencia}
-                className="bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl font-bold"
-              >
-                🏦 Transferencia bancaria
-              </button>
-            </div>
+            <button
+              onClick={reservarPorTransferencia}
+              className="bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl font-bold w-full"
+            >
+              🏦 Transferencia bancaria
+            </button>
           </div>
         )}
 
@@ -238,7 +197,6 @@ export default function RifaPublicaPage() {
         <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
           {lista.map((n) => {
             const bloqueado =
-              rifa.estado === "sorteada" ||
               numeros[n]?.estado === "pendiente_pago" ||
               numeros[n]?.estado === "pagado";
 
