@@ -16,7 +16,7 @@ import { useParams, useRouter } from "next/navigation";
 
 /* ================= TIPOS ================= */
 type Numero = {
-  estado: "reservado" | "pagado";
+  estado: "pendiente_pago" | "pagado";
   nombre?: string;
   telefono?: string;
 };
@@ -94,29 +94,25 @@ export default function AdminRifaPage() {
   }
 
   /* ================= MENSAJES ================= */
-  const mensajePago = (num: string) => {
-    const fecha = rifa?.fechaSorteo || "Por confirmar";
-    return `✅ PAGO CONFIRMADO
+  const mensajeRecordatorio = (num: string) =>
+    `Hola 👋 te escribo por la *Rifa Solidaria*.\n\n` +
+    `Tienes separado el número *${num}* y aún está pendiente el pago.\n\n` +
+    `Por favor envíame el comprobante para confirmar tu participación 🙏`;
 
-🎟️ Rifa: ${rifa.titulo}
-🎁 Premio: ${rifa.premio}
-🔢 Número: ${num}
-📅 Sorteo: ${fecha}
+  const mensajePago = (num: string) =>
+    `✅ PAGO CONFIRMADO\n\n` +
+    `🎟️ Rifa: ${rifa.titulo}\n` +
+    `🎁 Premio: ${rifa.premio}\n` +
+    `🔢 Número: ${num}\n\n` +
+    `Gracias por participar 🙌`;
 
-Gracias por participar 🙌`;
-  };
-
-  const mensajeGanador = (num: string) => {
-    return `🎉 FELICIDADES 🎉
-
-Has ganado la rifa:
-
-🎟️ ${rifa.titulo}
-🎁 Premio: ${rifa.premio}
-🔢 Número ganador: ${num}
-
-Por favor responde para coordinar la entrega 🙌`;
-  };
+  const mensajeGanador = (num: string) =>
+    `🎉 FELICIDADES 🎉\n\n` +
+    `Has ganado la rifa:\n\n` +
+    `🎟️ ${rifa.titulo}\n` +
+    `🎁 Premio: ${rifa.premio}\n` +
+    `🔢 Número ganador: ${num}\n\n` +
+    `Por favor responde para coordinar la entrega 🙌`;
 
   /* ================= ACCIONES ================= */
   const marcarPagado = async (num: string) => {
@@ -251,15 +247,6 @@ Por favor responde para coordinar la entrega 🙌`;
           </button>
         </div>
 
-        {rifa.estado === "sorteada" && rifa.ganador && (
-          <div className="mt-6 p-5 bg-neutral-900 border border-neutral-800 rounded-2xl">
-            <h2 className="font-bold text-lg">🏆 Ganador</h2>
-            <p className="mt-1">
-              Número <b>{rifa.ganador.numero}</b> — {rifa.ganador.nombre}
-            </p>
-          </div>
-        )}
-
         <div className="mt-8 bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-neutral-800">
@@ -289,12 +276,27 @@ Por favor responde para coordinar la entrega 🙌`;
                       </span>
                     </td>
                     <td className="p-3 text-right space-x-2">
+                      {numeros[n].estado === "pendiente_pago" && (
+                        <button
+                          onClick={() =>
+                            abrirWhatsApp(
+                              numeros[n].telefono || "",
+                              mensajeRecordatorio(n)
+                            )
+                          }
+                          className="px-3 py-1 bg-green-600 rounded text-xs"
+                        >
+                          WhatsApp
+                        </button>
+                      )}
+
                       <button
                         onClick={() => marcarPagado(n)}
                         className="px-3 py-1 bg-emerald-600 rounded text-xs"
                       >
                         Pagado
                       </button>
+
                       <button
                         onClick={() => liberarNumero(n)}
                         className="px-3 py-1 bg-red-600 rounded text-xs"

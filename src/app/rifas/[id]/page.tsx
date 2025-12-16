@@ -33,6 +33,9 @@ export default function RifaPublicaPage() {
   const [mensajeTransferencia, setMensajeTransferencia] =
     useState<string | null>(null);
 
+  // 🔥 NUEVO: control de pasos
+  const [pasoPago, setPasoPago] = useState(false);
+
   /* ================= CARGAR RIFA ================= */
   useEffect(() => {
     if (!id) return;
@@ -75,6 +78,8 @@ export default function RifaPublicaPage() {
 
   /* ================= TOGGLE ================= */
   const toggleNumero = (n: string) => {
+    if (pasoPago) return; // ⛔ no cambiar selección en paso pago
+
     setSeleccionados((prev) =>
       prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]
     );
@@ -86,9 +91,10 @@ export default function RifaPublicaPage() {
     setNombre("");
     setTelefono("");
     setMensajeTransferencia(null);
+    setPasoPago(false);
   };
 
-  /* ================= TRANSFERENCIA (ÚNICO MÉTODO) ================= */
+  /* ================= TRANSFERENCIA ================= */
   const reservarPorTransferencia = async () => {
     if (!nombre || !telefono || seleccionados.length === 0) {
       alert("Selecciona números y completa tus datos");
@@ -109,15 +115,14 @@ export default function RifaPublicaPage() {
 
     await batch.commit();
 
-    // MENSAJE EXACTO COMO PEDISTE
     setMensajeTransferencia(
       "Acabas de separar tus números, ahora haz el depósito a la cuenta de ahorro #55443713 del Banco de Guayaquil a nombre de Olga Jiménez Alvarado.\n\nEnvía tu comprobante al 0961079919."
     );
 
-    // Ocultar formulario
     setSeleccionados([]);
     setNombre("");
     setTelefono("");
+    setPasoPago(false);
   };
 
   /* ================= COLORES ================= */
@@ -154,8 +159,26 @@ export default function RifaPublicaPage() {
           </div>
         )}
 
-        {/* FORMULARIO */}
-        {seleccionados.length > 0 && !mensajeTransferencia && (
+        {/* ===== PASO 1: BOTÓN SIGUIENTE ===== */}
+        {seleccionados.length > 0 && !pasoPago && !mensajeTransferencia && (
+          <div className="my-6 text-center">
+            <p className="mb-3 text-neutral-300">
+              Has seleccionado:{" "}
+              <b className="text-white">{seleccionados.join(", ")}</b>
+            </p>
+
+            <button
+              onClick={() => setPasoPago(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 px-8 py-4 rounded-2xl font-bold text-lg"
+            >
+              👉 Siguiente paso ({seleccionados.length} número
+              {seleccionados.length > 1 ? "s" : ""})
+            </button>
+          </div>
+        )}
+
+        {/* ===== PASO 2: FORMULARIO ===== */}
+        {pasoPago && !mensajeTransferencia && (
           <div className="mb-10 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md">
             <h2 className="text-xl font-bold mb-2">
               Números: {seleccionados.join(", ")}
@@ -164,10 +187,10 @@ export default function RifaPublicaPage() {
             <p className="mb-2">Total: ${totalPagar}</p>
 
             <button
-              onClick={resetSeleccion}
+              onClick={() => setPasoPago(false)}
               className="mb-4 w-full bg-neutral-700 hover:bg-neutral-600 py-2 rounded-lg text-sm"
             >
-              🔄 Cambiar selección
+              ← Volver a elegir números
             </button>
 
             <input
