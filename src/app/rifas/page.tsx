@@ -11,6 +11,8 @@ import {
   where,
   getDocs,
   Timestamp,
+  deleteDoc,
+  doc,
 } from "firebase/firestore";
 
 type Rifa = {
@@ -88,6 +90,27 @@ export default function RifasPage() {
     await signOut(auth);
     router.push("/login");
   }, [router]);
+
+  // 🔥 FUNCIÓN ELIMINAR RIFA
+  const eliminarRifa = useCallback(
+    async (id: string) => {
+      if (!uid) return;
+
+      const ok = confirm(
+        "¿Seguro que deseas eliminar esta rifa?\n\n⚠️ Esta acción no se puede deshacer."
+      );
+      if (!ok) return;
+
+      try {
+        await deleteDoc(doc(db, "rifas", id));
+        setRifas((prev) => prev.filter((r) => r.id !== id));
+      } catch (e) {
+        console.error("Error eliminando rifa:", e);
+        alert("No se pudo eliminar la rifa");
+      }
+    },
+    [uid]
+  );
 
   const badge = (estado: Rifa["estado"]) => {
     if (estado === "activa")
@@ -205,10 +228,21 @@ export default function RifasPage() {
                     <span>🔢 {r.totalNumeros || 0} núm.</span>
                   </div>
 
-                  <div className="pt-2">
+                  {/* ACCIONES */}
+                  <div className="flex justify-between items-center pt-3 border-t border-neutral-800">
                     <span className="text-xs font-medium text-indigo-300 group-hover:text-indigo-200">
                       Administrar →
                     </span>
+
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        eliminarRifa(r.id);
+                      }}
+                      className="text-xs bg-red-600/20 text-red-400 border border-red-600/40 px-3 py-1 rounded-full hover:bg-red-600/30 transition"
+                    >
+                      🗑 Eliminar
+                    </button>
                   </div>
                 </div>
               </Link>

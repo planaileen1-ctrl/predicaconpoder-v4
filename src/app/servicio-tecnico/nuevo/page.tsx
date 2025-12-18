@@ -114,8 +114,6 @@ export default function NuevoServicioPage() {
         total,
       });
 
-      // ❌ NO redirige
-      // ✅ Se queda aquí
       setGuardado(true);
     } catch (e: any) {
       setError("Error al guardar el servicio");
@@ -211,9 +209,22 @@ export default function NuevoServicioPage() {
           {guardando ? "Guardando..." : guardado ? "Guardado" : "Guardar servicio"}
         </button>
 
-        <div className="grid md:grid-cols-2 gap-3">
-          <button type="button" onClick={() => window.print()} className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10">
+        <div className="grid md:grid-cols-3 gap-3">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10"
+          >
             🖨️ Imprimir
+          </button>
+
+          {/* 🔄 BOTÓN REFRESCAR */}
+          <button
+            type="button"
+            onClick={() => router.refresh()}
+            className="px-4 py-3 rounded-2xl bg-blue-600/70 hover:bg-blue-600 border border-blue-600"
+          >
+            🔄 Refrescar
           </button>
 
           <button

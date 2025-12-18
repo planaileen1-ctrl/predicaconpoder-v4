@@ -166,7 +166,7 @@ export default function AileenHome() {
           100% { transform: translateY(0) rotate(0); }
         }
 
-        .animate-float {
+        .animate-float {||
           animation: float infinite ease-in-out;
           font-size: 28px;
           opacity: 0.7;

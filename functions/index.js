@@ -1,19 +1,15 @@
-const { onRequest } = require("firebase-functions/v2/https");
+const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const axios = require("axios");
 const cors = require("cors");
 
 admin.initializeApp();
-const db = admin.firestore();
 
 const corsHandler = cors({ origin: true });
 
-/* ================= CREATE PAYPHONE PAYMENT ================= */
-exports.createPayphonePayment = onRequest(
-  {
-    secrets: ["PAYPHONE_TOKEN"], // 🔥 AQUÍ ESTABA EL ERROR
-  },
-  async (req, res) => {
+exports.createPayphonePayment = functions
+  .region("us-central1")
+  .https.onRequest((req, res) => {
     corsHandler(req, res, async () => {
       try {
         if (req.method !== "POST") {
@@ -22,27 +18,44 @@ exports.createPayphonePayment = onRequest(
 
         const { rifaId, numero, nombre, telefono, monto } = req.body;
 
-        if (!rifaId || !numero || !monto) {
-          return res.status(400).json({ error: "Datos incompletos" });
+        const montoNumber = Number(monto);
+
+        if (
+          !rifaId ||
+          !numero ||
+          !nombre ||
+          !telefono ||
+          isNaN(montoNumber) ||
+          montoNumber <= 0
+        ) {
+          return res.status(400).json({
+            error: "Datos inválidos o incompletos",
+            body: req.body,
+          });
         }
 
         const PAYPHONE_TOKEN = process.env.PAYPHONE_TOKEN;
 
         if (!PAYPHONE_TOKEN) {
           return res.status(500).json({
-            error: "Token PayPhone no configurado",
+            error: "PAYPHONE_TOKEN no configurado",
           });
         }
 
+        const amountCents = Math.round(montoNumber * 100);
+
+        const payload = {
+          amount: amountCents,
+          amountWithoutTax: amountCents,
+          currency: "USD",
+          clientTransactionId: `${rifaId}-${numero}-${Date.now()}`,
+          responseUrl: "https://predicaconpoder-v4.vercel.app/gracias",
+          cancellationUrl: "https://predicaconpoder-v4.vercel.app/cancelado",
+        };
+
         const response = await axios.post(
-          "https://pay.payphone.app/api/transaction",
-          {
-            amount: Math.round(Number(monto) * 100),
-            amountWithoutTax: Math.round(Number(monto) * 100),
-            tax: 0,
-            currency: "USD",
-            reference: `Rifa ${rifaId} Número ${numero}`,
-          },
+          "https://pay.payphonetodoesposible.com/api/button/Prepare",
+          payload,
           {
             headers: {
               Authorization: `Bearer ${PAYPHONE_TOKEN}`,
@@ -51,70 +64,22 @@ exports.createPayphonePayment = onRequest(
           }
         );
 
-        const { transactionId, paymentUrl } = response.data;
+        if (!response.data?.paymentUrl) {
+          return res.status(500).json({
+            error: "PayPhone no devolvió paymentUrl",
+            response: response.data,
+          });
+        }
 
-        await db
-          .collection("rifas")
-          .doc(rifaId)
-          .collection("numeros")
-          .doc(numero)
-          .set(
-            {
-              estado: "pendiente_pago",
-              nombre,
-              telefono,
-              payphoneTransactionId: transactionId,
-              creadoAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
-
-        return res.json({ paymentUrl });
+        return res.json({
+          paymentUrl: response.data.paymentUrl,
+        });
       } catch (error) {
-        console.error(
-          "❌ PayPhone ERROR:",
-          error.response?.data || error.message
-        );
+        console.error("PayPhone ERROR:", error.response?.data || error.message);
         return res.status(500).json({
-          error: "Error creando pago PayPhone",
+          error: "Error PayPhone",
           detail: error.response?.data || error.message,
         });
       }
     });
-  }
-);
-
-/* ================= WEBHOOK ================= */
-exports.payphoneWebhook = onRequest(async (req, res) => {
-  try {
-    const data = req.body;
-
-    if (data?.status !== "APPROVED") {
-      return res.status(200).send("IGNORED");
-    }
-
-    const ref = data.reference; // Rifa {id} Número {num}
-    const match = ref.match(/Rifa (.+) Número (\d+)/);
-
-    if (!match) {
-      return res.status(400).send("Invalid reference");
-    }
-
-    const [, rifaId, numero] = match;
-
-    await db
-      .collection("rifas")
-      .doc(rifaId)
-      .collection("numeros")
-      .doc(numero)
-      .update({
-        estado: "pagado",
-        pagadoAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-    return res.status(200).send("OK");
-  } catch (e) {
-    console.error("Webhook error:", e);
-    return res.status(500).send("ERROR");
-  }
-});
+  });
