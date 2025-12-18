@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { auth, db } from "@/lib/firebase";
 import {
   doc,
@@ -14,6 +14,9 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useParams, useRouter } from "next/navigation";
+
+/* ================= CONFIG ================= */
+const PRECIO_RIFA = 2;
 
 /* ================= TIPOS ================= */
 type Numero = {
@@ -48,7 +51,7 @@ export default function AdminRifaPage() {
 
   const unsubNumerosRef = useRef<null | (() => void)>(null);
 
-  /* ================= CARGA MANUAL (REFRESCAR) ================= */
+  /* ================= CARGA MANUAL ================= */
   const cargarNumeros = async () => {
     const snap = await getDocs(
       collection(db, "rifas", id as string, "numeros")
@@ -62,7 +65,7 @@ export default function AdminRifaPage() {
     setNumeros(mapa);
   };
 
-  /* ================= AUTH + TIEMPO REAL ================= */
+  /* ================= AUTH + REALTIME ================= */
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -104,6 +107,34 @@ export default function AdminRifaPage() {
     };
   }, [id, router]);
 
+  /* ================= CONTADORES ================= */
+  const totalVendidas = Object.keys(numeros).length;
+
+  const totalPagadas = useMemo(
+    () =>
+      Object.values(numeros).filter((n) => n.estado === "pagado").length,
+    [numeros]
+  );
+
+  const totalPendientes = useMemo(
+    () =>
+      Object.values(numeros).filter(
+        (n) => n.estado === "pendiente_pago"
+      ).length,
+    [numeros]
+  );
+
+  const totalDisponibles = Math.max(
+    0,
+    (rifa?.totalNumeros || 0) - totalVendidas
+  );
+
+  /* ================= DINERO ================= */
+  const dineroVendidas = totalVendidas * PRECIO_RIFA;
+  const dineroPagadas = totalPagadas * PRECIO_RIFA;
+  const dineroPendientes = totalPendientes * PRECIO_RIFA;
+  const dineroDisponibles = totalDisponibles * PRECIO_RIFA;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
@@ -116,14 +147,16 @@ export default function AdminRifaPage() {
   const mensajeRecordatorio = (num: string) =>
     `Hola 👋 te escribo por la *Rifa Solidaria*.\n\n` +
     `Tienes separado el número *${num}* y aún está pendiente el pago.\n\n` +
-    `Por favor envíame el comprobante para confirmar tu participación 🙏`;
+    `Por favor envíame el comprobante 🙏`;
 
   const mensajePago = (num: string) =>
-    `✅ PAGO CONFIRMADO\n\n` +
+    `🎉 *GRACIAS POR TU COMPRA* 🎉\n\n` +
     `🎟️ Rifa: ${rifa.titulo}\n` +
     `🎁 Premio: ${rifa.premio}\n` +
-    `🔢 Número: ${num}\n\n` +
-    `Gracias por participar 🙌`;
+    `🔢 Número elegido: *${num}*\n` +
+    `💵 Valor: $${PRECIO_RIFA}\n\n` +
+    `📅 *Fecha del sorteo:* 23 de diciembre\n\n` +
+    `¡Mucha suerte! 🍀`;
 
   const mensajeGanador = (num: string) =>
     `🎉 FELICIDADES 🎉\n\n` +
@@ -131,13 +164,18 @@ export default function AdminRifaPage() {
     `🎟️ ${rifa.titulo}\n` +
     `🎁 Premio: ${rifa.premio}\n` +
     `🔢 Número ganador: ${num}\n\n` +
-    `Por favor responde para coordinar la entrega 🙌`;
+    `Responde para coordinar la entrega 🙌`;
 
   /* ================= ACCIONES ================= */
   const marcarPagado = async (num: string) => {
     await updateDoc(doc(db, "rifas", id as string, "numeros", num), {
       estado: "pagado",
     });
+
+    const tel = numeros[num]?.telefono;
+    if (tel) {
+      abrirWhatsApp(tel, mensajePago(num));
+    }
   };
 
   const liberarNumero = async (num: string) => {
@@ -214,29 +252,22 @@ export default function AdminRifaPage() {
           Panel Admin — <span className="text-pink-400">{rifa.titulo}</span>
         </h1>
 
-        <div className="flex flex-wrap gap-3 mt-4">
-          <button
-            onClick={realizarSorteo}
-            className="bg-purple-600 px-5 py-3 rounded-xl font-bold"
-          >
-            🎉 Realizar sorteo
-          </button>
-
-          <button
-            onClick={resetearRifa}
-            className="bg-red-700 px-5 py-3 rounded-xl font-bold"
-          >
-            🧹 Resetear rifa
-          </button>
-
-          <button
-            onClick={cargarNumeros}
-            className="bg-blue-600 px-5 py-3 rounded-xl font-bold"
-          >
-            🔄 Refrescar
-          </button>
+        {/* ===== RESUMEN DINERO ===== */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <Resumen titulo="🎟️ Vendidas" cantidad={totalVendidas} dinero={dineroVendidas} />
+          <Resumen titulo="⏳ Pendientes" cantidad={totalPendientes} dinero={dineroPendientes} color="text-amber-400" />
+          <Resumen titulo="✅ Pagadas" cantidad={totalPagadas} dinero={dineroPagadas} color="text-emerald-400" />
+          <Resumen titulo="📦 Disponibles" cantidad={totalDisponibles} dinero={dineroDisponibles} color="text-sky-400" />
         </div>
 
+        {/* ===== BOTONES ===== */}
+        <div className="flex flex-wrap gap-3 mt-6">
+          <button onClick={realizarSorteo} className="bg-purple-600 px-5 py-3 rounded-xl font-bold">🎉 Realizar sorteo</button>
+          <button onClick={resetearRifa} className="bg-red-700 px-5 py-3 rounded-xl font-bold">🧹 Resetear rifa</button>
+          <button onClick={cargarNumeros} className="bg-blue-600 px-5 py-3 rounded-xl font-bold">🔄 Refrescar</button>
+        </div>
+
+        {/* ===== TABLA ===== */}
         <div className="mt-8 bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-neutral-800">
@@ -249,53 +280,35 @@ export default function AdminRifaPage() {
               </tr>
             </thead>
             <tbody>
-              {Object.keys(numeros)
-                .sort()
-                .map((n) => (
-                  <tr key={n} className="border-t border-neutral-800">
-                    <td className="p-3 font-bold">{n}</td>
-                    <td className="p-3">{numeros[n].nombre}</td>
-                    <td className="p-3">{numeros[n].telefono}</td>
-                    <td className="p-3">
-                      <span
-                        className={`px-3 py-1 rounded-full border text-xs ${badge(
-                          numeros[n].estado
-                        )}`}
-                      >
-                        {numeros[n].estado.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right space-x-2">
-                      {numeros[n].estado === "pendiente_pago" && (
-                        <button
-                          onClick={() =>
-                            abrirWhatsApp(
-                              numeros[n].telefono || "",
-                              mensajeRecordatorio(n)
-                            )
-                          }
-                          className="px-3 py-1 bg-green-600 rounded text-xs"
-                        >
-                          WhatsApp
-                        </button>
-                      )}
-
+              {Object.keys(numeros).sort().map((n) => (
+                <tr key={n} className="border-t border-neutral-800">
+                  <td className="p-3 font-bold">{n}</td>
+                  <td className="p-3">{numeros[n].nombre}</td>
+                  <td className="p-3">{numeros[n].telefono}</td>
+                  <td className="p-3">
+                    <span className={`px-3 py-1 rounded-full border text-xs ${badge(numeros[n].estado)}`}>
+                      {numeros[n].estado.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right space-x-2">
+                    {numeros[n].estado === "pendiente_pago" && (
                       <button
-                        onClick={() => marcarPagado(n)}
-                        className="px-3 py-1 bg-emerald-600 rounded text-xs"
+                        onClick={() =>
+                          abrirWhatsApp(
+                            numeros[n].telefono || "",
+                            mensajeRecordatorio(n)
+                          )
+                        }
+                        className="px-3 py-1 bg-green-600 rounded text-xs"
                       >
-                        Pagado
+                        WhatsApp
                       </button>
-
-                      <button
-                        onClick={() => liberarNumero(n)}
-                        className="px-3 py-1 bg-red-600 rounded text-xs"
-                      >
-                        Liberar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                    )}
+                    <button onClick={() => marcarPagado(n)} className="px-3 py-1 bg-emerald-600 rounded text-xs">Pagado</button>
+                    <button onClick={() => liberarNumero(n)} className="px-3 py-1 bg-red-600 rounded text-xs">Liberar</button>
+                  </td>
+                </tr>
+              ))}
               {Object.keys(numeros).length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-neutral-400">
@@ -308,5 +321,26 @@ export default function AdminRifaPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+/* ================= COMPONENTE RESUMEN ================= */
+function Resumen({
+  titulo,
+  cantidad,
+  dinero,
+  color = "text-white",
+}: {
+  titulo: string;
+  cantidad: number;
+  dinero: number;
+  color?: string;
+}) {
+  return (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
+      <div className="text-sm text-neutral-400">{titulo}</div>
+      <div className={`text-2xl font-bold ${color}`}>{cantidad}</div>
+      <div className="text-sm text-neutral-400">${dinero}</div>
+    </div>
   );
 }
