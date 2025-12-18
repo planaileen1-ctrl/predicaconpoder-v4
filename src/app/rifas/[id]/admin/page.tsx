@@ -202,6 +202,15 @@ export default function AdminRifaPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white p-6">
       <div className="max-w-6xl mx-auto">
+
+        {/* 🔙 VOLVER A LOS NÚMEROS */}
+        <button
+          onClick={() => router.push(`/rifas/${id}`)}
+          className="mb-4 flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-medium"
+        >
+          ⬅️ Volver a los números de la rifa
+        </button>
+
         <h1 className="text-3xl font-bold mb-6">
           Panel Admin — <span className="text-pink-400">{rifa.titulo}</span>
         </h1>
@@ -224,7 +233,7 @@ export default function AdminRifaPage() {
           </button>
         </div>
 
-        {/* ===== TABLA CLIENTES ===== */}
+        {/* ===== TABLA ===== */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-neutral-800">
