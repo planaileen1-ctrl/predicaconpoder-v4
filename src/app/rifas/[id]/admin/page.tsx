@@ -48,7 +48,7 @@ export default function AdminRifaPage() {
 
   const unsubNumerosRef = useRef<null | (() => void)>(null);
 
-  /* ================= CARGAR NÚMEROS (MANUAL) ================= */
+  /* ================= CARGA MANUAL (REFRESCAR) ================= */
   const cargarNumeros = async () => {
     const snap = await getDocs(
       collection(db, "rifas", id as string, "numeros")
@@ -86,7 +86,6 @@ export default function AdminRifaPage() {
 
       setRifa(data);
 
-      // 🔥 TIEMPO REAL
       const ref = collection(db, "rifas", id as string, "numeros");
       unsubNumerosRef.current = onSnapshot(ref, (snap) => {
         const mapa: Record<string, Numero> = {};
@@ -115,13 +114,24 @@ export default function AdminRifaPage() {
 
   /* ================= MENSAJES ================= */
   const mensajeRecordatorio = (num: string) =>
-    `Hola 👋 te escribo por la *Rifa Solidaria*.\n\nTienes el número *${num}* pendiente de pago 🙏`;
+    `Hola 👋 te escribo por la *Rifa Solidaria*.\n\n` +
+    `Tienes separado el número *${num}* y aún está pendiente el pago.\n\n` +
+    `Por favor envíame el comprobante para confirmar tu participación 🙏`;
 
   const mensajePago = (num: string) =>
-    `✅ PAGO CONFIRMADO\nNúmero: ${num}\nGracias por participar 🙌`;
+    `✅ PAGO CONFIRMADO\n\n` +
+    `🎟️ Rifa: ${rifa.titulo}\n` +
+    `🎁 Premio: ${rifa.premio}\n` +
+    `🔢 Número: ${num}\n\n` +
+    `Gracias por participar 🙌`;
 
   const mensajeGanador = (num: string) =>
-    `🎉 FELICIDADES 🎉\nHas ganado con el número ${num} 🙌`;
+    `🎉 FELICIDADES 🎉\n\n` +
+    `Has ganado la rifa:\n\n` +
+    `🎟️ ${rifa.titulo}\n` +
+    `🎁 Premio: ${rifa.premio}\n` +
+    `🔢 Número ganador: ${num}\n\n` +
+    `Por favor responde para coordinar la entrega 🙌`;
 
   /* ================= ACCIONES ================= */
   const marcarPagado = async (num: string) => {
@@ -219,7 +229,6 @@ export default function AdminRifaPage() {
             🧹 Resetear rifa
           </button>
 
-          {/* 🔄 REFRESCAR FUNCIONAL */}
           <button
             onClick={cargarNumeros}
             className="bg-blue-600 px-5 py-3 rounded-xl font-bold"
@@ -240,26 +249,53 @@ export default function AdminRifaPage() {
               </tr>
             </thead>
             <tbody>
-              {Object.keys(numeros).sort().map((n) => (
-                <tr key={n} className="border-t border-neutral-800">
-                  <td className="p-3 font-bold">{n}</td>
-                  <td className="p-3">{numeros[n].nombre}</td>
-                  <td className="p-3">{numeros[n].telefono}</td>
-                  <td className="p-3">
-                    <span className={`px-3 py-1 rounded-full border text-xs ${badge(numeros[n].estado)}`}>
-                      {numeros[n].estado.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="p-3 text-right space-x-2">
-                    <button onClick={() => marcarPagado(n)} className="px-3 py-1 bg-emerald-600 rounded text-xs">
-                      Pagado
-                    </button>
-                    <button onClick={() => liberarNumero(n)} className="px-3 py-1 bg-red-600 rounded text-xs">
-                      Liberar
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {Object.keys(numeros)
+                .sort()
+                .map((n) => (
+                  <tr key={n} className="border-t border-neutral-800">
+                    <td className="p-3 font-bold">{n}</td>
+                    <td className="p-3">{numeros[n].nombre}</td>
+                    <td className="p-3">{numeros[n].telefono}</td>
+                    <td className="p-3">
+                      <span
+                        className={`px-3 py-1 rounded-full border text-xs ${badge(
+                          numeros[n].estado
+                        )}`}
+                      >
+                        {numeros[n].estado.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right space-x-2">
+                      {numeros[n].estado === "pendiente_pago" && (
+                        <button
+                          onClick={() =>
+                            abrirWhatsApp(
+                              numeros[n].telefono || "",
+                              mensajeRecordatorio(n)
+                            )
+                          }
+                          className="px-3 py-1 bg-green-600 rounded text-xs"
+                        >
+                          WhatsApp
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => marcarPagado(n)}
+                        className="px-3 py-1 bg-emerald-600 rounded text-xs"
+                      >
+                        Pagado
+                      </button>
+
+                      <button
+                        onClick={() => liberarNumero(n)}
+                        className="px-3 py-1 bg-red-600 rounded text-xs"
+                      >
+                        Liberar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               {Object.keys(numeros).length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-neutral-400">
