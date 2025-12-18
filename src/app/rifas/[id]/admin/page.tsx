@@ -17,7 +17,6 @@ import { useParams, useRouter } from "next/navigation";
 
 /* ================= CONFIG ================= */
 const PRECIO_RIFA = 2;
-const FECHA_SORTEO = "23 de diciembre";
 
 /* ================= TIPOS ================= */
 type Numero = {
@@ -112,13 +111,16 @@ export default function AdminRifaPage() {
   const totalVendidas = Object.keys(numeros).length;
 
   const totalPagadas = useMemo(
-    () => Object.values(numeros).filter((n) => n.estado === "pagado").length,
+    () =>
+      Object.values(numeros).filter((n) => n.estado === "pagado").length,
     [numeros]
   );
 
   const totalPendientes = useMemo(
     () =>
-      Object.values(numeros).filter((n) => n.estado === "pendiente_pago").length,
+      Object.values(numeros).filter(
+        (n) => n.estado === "pendiente_pago"
+      ).length,
     [numeros]
   );
 
@@ -127,6 +129,7 @@ export default function AdminRifaPage() {
     (rifa?.totalNumeros || 0) - totalVendidas
   );
 
+  /* ================= DINERO ================= */
   const dineroVendidas = totalVendidas * PRECIO_RIFA;
   const dineroPagadas = totalPagadas * PRECIO_RIFA;
   const dineroPendientes = totalPendientes * PRECIO_RIFA;
@@ -152,45 +155,81 @@ export default function AdminRifaPage() {
     `🎁 Premio: ${rifa.premio}\n` +
     `🔢 Número elegido: *${num}*\n` +
     `💵 Valor: $${PRECIO_RIFA}\n\n` +
-    `📅 *Fecha del sorteo:* ${FECHA_SORTEO}\n\n` +
+    `📅 *Fecha del sorteo:* 23 de diciembre\n\n` +
     `¡Mucha suerte! 🍀`;
 
-  const mensajePagoMultiple = (nums: string[]) =>
-    `🎉 *GRACIAS POR TU COMPRA* 🎉\n\n` +
-    `🎟️ Rifa: ${rifa.titulo}\n` +
-    `🎁 Premio: ${rifa.premio}\n\n` +
-    `🔢 *Números elegidos:*\n` +
-    nums.map((n) => `• ${n}`).join("\n") +
-    `\n\n💵 *Total pagado:* $${nums.length * PRECIO_RIFA}\n` +
-    `📅 *Sorteo:* ${FECHA_SORTEO}\n\n` +
-    `¡Mucha suerte! 🍀🙌`;
+  const mensajeGanador = (num: string) =>
+    `🎉 FELICIDADES 🎉\n\n` +
+    `Has ganado la rifa:\n\n` +
+    `🎟️ ${rifa.titulo}\n` +
+    `🎁 Premio: ${rifa.premio}\n` +
+    `🔢 Número ganador: ${num}\n\n` +
+    `Responde para coordinar la entrega 🙌`;
 
-  const enviarWhatsAppPorCliente = () => {
-    const agrupados: Record<string, string[]> = {};
-
-    Object.entries(numeros).forEach(([num, info]) => {
-      if (info.estado !== "pagado" || !info.telefono) return;
-      if (!agrupados[info.telefono]) agrupados[info.telefono] = [];
-      agrupados[info.telefono].push(num);
-    });
-
-    Object.entries(agrupados).forEach(([tel, nums]) => {
-      abrirWhatsApp(tel, mensajePagoMultiple(nums));
-    });
-  };
-
+  /* ================= ACCIONES ================= */
   const marcarPagado = async (num: string) => {
     await updateDoc(doc(db, "rifas", id as string, "numeros", num), {
       estado: "pagado",
     });
 
     const tel = numeros[num]?.telefono;
-    if (tel) abrirWhatsApp(tel, mensajePago(num));
+    if (tel) {
+      abrirWhatsApp(tel, mensajePago(num));
+    }
   };
 
   const liberarNumero = async (num: string) => {
     if (!confirm(`¿Liberar número ${num}?`)) return;
     await deleteDoc(doc(db, "rifas", id as string, "numeros", num));
+  };
+
+  const realizarSorteo = async () => {
+    const pagados = Object.entries(numeros).filter(
+      ([_, info]) => info.estado === "pagado"
+    );
+
+    if (pagados.length === 0) {
+      alert("No hay números pagados");
+      return;
+    }
+
+    const [num, info] =
+      pagados[Math.floor(Math.random() * pagados.length)];
+
+    await updateDoc(doc(db, "rifas", id as string), {
+      estado: "sorteada",
+      ganador: {
+        numero: num,
+        nombre: info.nombre || "",
+        telefono: info.telefono || "",
+        fecha: Timestamp.now(),
+      },
+    });
+
+    alert(`🎉 Ganador: ${num}`);
+
+    if (info.telefono) {
+      abrirWhatsApp(info.telefono, mensajeGanador(num));
+    }
+  };
+
+  const resetearRifa = async () => {
+    if (!confirm("¿Seguro que deseas RESETEAR la rifa?")) return;
+
+    const snap = await getDocs(
+      collection(db, "rifas", id as string, "numeros")
+    );
+
+    for (const d of snap.docs) {
+      await deleteDoc(d.ref);
+    }
+
+    await updateDoc(doc(db, "rifas", id as string), {
+      estado: "activa",
+      ganador: null,
+    });
+
+    alert("✅ Rifa reseteada");
   };
 
   const badge = (estado: string) =>
@@ -201,22 +240,20 @@ export default function AdminRifaPage() {
   /* ================= UI ================= */
   return (
     <main className="min-h-screen bg-neutral-950 text-white p-6">
-      <div className="max-w-6xl mx-auto">
-
-        {/* 🔙 VOLVER A LOS NÚMEROS */}
+      <div className="max-w-5xl mx-auto">
         <button
           onClick={() => router.push(`/rifas/${id}`)}
-          className="mb-4 flex items-center gap-2 text-indigo-400 hover:text-indigo-300 text-sm font-medium"
+          className="text-indigo-400 text-sm hover:underline"
         >
-          ⬅️ Volver a los números de la rifa
+          ← Volver a la rifa
         </button>
 
-        <h1 className="text-3xl font-bold mb-6">
+        <h1 className="text-3xl font-bold mt-2">
           Panel Admin — <span className="text-pink-400">{rifa.titulo}</span>
         </h1>
 
-        {/* ===== RESUMEN ===== */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {/* ===== RESUMEN DINERO ===== */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
           <Resumen titulo="🎟️ Vendidas" cantidad={totalVendidas} dinero={dineroVendidas} />
           <Resumen titulo="⏳ Pendientes" cantidad={totalPendientes} dinero={dineroPendientes} color="text-amber-400" />
           <Resumen titulo="✅ Pagadas" cantidad={totalPagadas} dinero={dineroPagadas} color="text-emerald-400" />
@@ -224,17 +261,14 @@ export default function AdminRifaPage() {
         </div>
 
         {/* ===== BOTONES ===== */}
-        <div className="flex gap-3 mb-6">
-          <button onClick={enviarWhatsAppPorCliente} className="bg-green-700 px-5 py-3 rounded-xl font-bold">
-            📲 WhatsApp clientes (mensaje único)
-          </button>
-          <button onClick={cargarNumeros} className="bg-blue-600 px-5 py-3 rounded-xl font-bold">
-            🔄 Refrescar
-          </button>
+        <div className="flex flex-wrap gap-3 mt-6">
+          <button onClick={realizarSorteo} className="bg-purple-600 px-5 py-3 rounded-xl font-bold">🎉 Realizar sorteo</button>
+          <button onClick={resetearRifa} className="bg-red-700 px-5 py-3 rounded-xl font-bold">🧹 Resetear rifa</button>
+          <button onClick={cargarNumeros} className="bg-blue-600 px-5 py-3 rounded-xl font-bold">🔄 Refrescar</button>
         </div>
 
         {/* ===== TABLA ===== */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden">
+        <div className="mt-8 bg-neutral-900 border border-neutral-800 rounded-3xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-neutral-800">
               <tr>
@@ -290,8 +324,18 @@ export default function AdminRifaPage() {
   );
 }
 
-/* ================= RESUMEN ================= */
-function Resumen({ titulo, cantidad, dinero, color = "text-white" }: any) {
+/* ================= COMPONENTE RESUMEN ================= */
+function Resumen({
+  titulo,
+  cantidad,
+  dinero,
+  color = "text-white",
+}: {
+  titulo: string;
+  cantidad: number;
+  dinero: number;
+  color?: string;
+}) {
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
       <div className="text-sm text-neutral-400">{titulo}</div>
