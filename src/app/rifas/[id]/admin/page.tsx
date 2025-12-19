@@ -111,8 +111,7 @@ export default function AdminRifaPage() {
   const totalVendidas = Object.keys(numeros).length;
 
   const totalPagadas = useMemo(
-    () =>
-      Object.values(numeros).filter((n) => n.estado === "pagado").length,
+    () => Object.values(numeros).filter((n) => n.estado === "pagado").length,
     [numeros]
   );
 
@@ -173,14 +172,28 @@ export default function AdminRifaPage() {
     });
 
     const tel = numeros[num]?.telefono;
-    if (tel) {
-      abrirWhatsApp(tel, mensajePago(num));
-    }
+    if (tel) abrirWhatsApp(tel, mensajePago(num));
   };
 
   const liberarNumero = async (num: string) => {
     if (!confirm(`¿Liberar número ${num}?`)) return;
     await deleteDoc(doc(db, "rifas", id as string, "numeros", num));
+  };
+
+  // ✅ EDITAR SOLO TELÉFONO
+  const editarTelefono = async (num: string) => {
+    const actual = numeros[num];
+
+    const nuevoTelefono = prompt(
+      "Editar teléfono:",
+      actual.telefono || ""
+    );
+
+    if (nuevoTelefono === null) return;
+
+    await updateDoc(doc(db, "rifas", id as string, "numeros", num), {
+      telefono: nuevoTelefono.trim(),
+    });
   };
 
   const realizarSorteo = async () => {
@@ -252,7 +265,7 @@ export default function AdminRifaPage() {
           Panel Admin — <span className="text-pink-400">{rifa.titulo}</span>
         </h1>
 
-        {/* ===== RESUMEN DINERO ===== */}
+        {/* ===== RESUMEN ===== */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
           <Resumen titulo="🎟️ Vendidas" cantidad={totalVendidas} dinero={dineroVendidas} />
           <Resumen titulo="⏳ Pendientes" cantidad={totalPendientes} dinero={dineroPendientes} color="text-amber-400" />
@@ -291,6 +304,12 @@ export default function AdminRifaPage() {
                     </span>
                   </td>
                   <td className="p-3 text-right space-x-2">
+                    <button
+                      onClick={() => editarTelefono(n)}
+                      className="px-3 py-1 bg-yellow-600 rounded text-xs"
+                    >
+                      Editar
+                    </button>
                     {numeros[n].estado === "pendiente_pago" && (
                       <button
                         onClick={() =>
@@ -304,18 +323,15 @@ export default function AdminRifaPage() {
                         WhatsApp
                       </button>
                     )}
-                    <button onClick={() => marcarPagado(n)} className="px-3 py-1 bg-emerald-600 rounded text-xs">Pagado</button>
-                    <button onClick={() => liberarNumero(n)} className="px-3 py-1 bg-red-600 rounded text-xs">Liberar</button>
+                    <button onClick={() => marcarPagado(n)} className="px-3 py-1 bg-emerald-600 rounded text-xs">
+                      Pagado
+                    </button>
+                    <button onClick={() => liberarNumero(n)} className="px-3 py-1 bg-red-600 rounded text-xs">
+                      Liberar
+                    </button>
                   </td>
                 </tr>
               ))}
-              {Object.keys(numeros).length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-6 text-center text-neutral-400">
-                    No hay números aún
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
