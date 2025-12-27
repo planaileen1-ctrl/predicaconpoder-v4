@@ -12,6 +12,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 
+/* ================= HELPERS ================= */
 function generarCodigo5Digitos() {
   return Math.floor(10000 + Math.random() * 90000).toString();
 }
@@ -26,10 +27,15 @@ export default function InscribirsePage() {
   const [guardando, setGuardando] = useState(false);
 
   const [codigoMostrado, setCodigoMostrado] = useState<string | null>(null);
+
   const [publicos, setPublicos] = useState<Publico[]>([]);
+  const [errorLista, setErrorLista] = useState<string | null>(null);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
 
   // ✅ Lista pública SOLO nombres
   useEffect(() => {
+    setErrorLista(null);
+
     const q = query(
       collection(db, "intercambio_regalos_public"),
       orderBy("creadoEn", "asc")
@@ -44,15 +50,20 @@ export default function InscribirsePage() {
         }));
         setPublicos(data);
       },
-      (err) => console.error(err)
+      (err: any) => {
+        console.error("onSnapshot error:", err);
+        setErrorLista((err?.code || "error") + " - " + (err?.message || "No se pudo leer la lista"));
+      }
     );
 
     return () => unsub();
   }, []);
 
   const handleSubmit = async () => {
+    setErrorGuardar(null);
+
     if (!nombre.trim() || !deseo.trim()) {
-      alert("Completa todos los campos.");
+      setErrorGuardar("Completa todos los campos.");
       return;
     }
 
@@ -66,7 +77,7 @@ export default function InscribirsePage() {
         creadoEn: Timestamp.now(),
       });
 
-      // 2) Privado: nombre + deseo + código (solo admin puede leer)
+      // 2) Privado: nombre + deseo + código (solo admin podrá leer)
       await addDoc(collection(db, "intercambio_regalos_participantes"), {
         nombreCompleto: nombre.trim(),
         deseo: deseo.trim(),
@@ -78,8 +89,8 @@ export default function InscribirsePage() {
       setNombre("");
       setDeseo("");
     } catch (err: any) {
-      console.error(err);
-      alert((err?.code || "error") + " - " + (err?.message || "Error al inscribirse"));
+      console.error("addDoc error:", err);
+      setErrorGuardar((err?.code || "error") + " - " + (err?.message || "Error al inscribirse"));
     } finally {
       setGuardando(false);
     }
@@ -102,9 +113,29 @@ export default function InscribirsePage() {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* FORM */}
+          {/* FORMULARIO */}
           <section className="lg:col-span-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4">
-            {!codigoMostrado ? (
+            {codigoMostrado ? (
+              <div className="bg-neutral-800 border border-neutral-700 rounded-xl p-5 text-center">
+                <p className="text-sm text-neutral-300 mb-2">✅ Inscripción exitosa</p>
+                <p className="text-xs text-neutral-400 mb-2">
+                  Este es tu <b>código secreto</b>. Guárdalo.
+                </p>
+                <p className="text-3xl font-bold tracking-widest text-pink-400">
+                  {codigoMostrado}
+                </p>
+                <p className="text-xs text-neutral-500 mt-3">
+                  Con este código podrás ver a quién te toca regalar. No lo compartas.
+                </p>
+
+                <button
+                  onClick={() => setCodigoMostrado(null)}
+                  className="mt-4 text-sm text-indigo-300 hover:text-indigo-200"
+                >
+                  Inscribir a otra persona →
+                </button>
+              </div>
+            ) : (
               <>
                 <div>
                   <label className="block text-sm mb-1 text-neutral-300">
@@ -130,6 +161,12 @@ export default function InscribirsePage() {
                   />
                 </div>
 
+                {errorGuardar && (
+                  <div className="bg-red-950/40 border border-red-900 rounded-xl p-3 text-sm text-red-200">
+                    {errorGuardar}
+                  </div>
+                )}
+
                 <button
                   onClick={handleSubmit}
                   disabled={guardando}
@@ -138,39 +175,25 @@ export default function InscribirsePage() {
                   {guardando ? "Guardando..." : "Inscribirme"}
                 </button>
               </>
-            ) : (
-              <div className="bg-neutral-800 border border-neutral-700 rounded-xl p-5 text-center">
-                <p className="text-sm text-neutral-300 mb-2">✅ Inscripción exitosa</p>
-                <p className="text-xs text-neutral-400 mb-2">
-                  Este es tu <b>código secreto</b>. Guárdalo.
-                </p>
-                <p className="text-3xl font-bold tracking-widest text-pink-400">
-                  {codigoMostrado}
-                </p>
-                <p className="text-xs text-neutral-500 mt-3">
-                  Con este código podrás ver a quién te toca regalar. No lo compartas.
-                </p>
-
-                <button
-                  onClick={() => setCodigoMostrado(null)}
-                  className="mt-4 text-sm text-indigo-300 hover:text-indigo-200"
-                >
-                  Inscribir a otra persona →
-                </button>
-              </div>
             )}
           </section>
 
           {/* LISTA PÚBLICA */}
           <aside className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold mb-4">
+            <h2 className="text-lg font-semibold mb-2">
               👥 Inscritos ({publicos.length})
             </h2>
+
+            {errorLista && (
+              <div className="bg-amber-950/40 border border-amber-900 rounded-xl p-3 text-xs text-amber-200 mb-4">
+                {errorLista}
+              </div>
+            )}
 
             {publicos.length === 0 ? (
               <p className="text-neutral-500 text-sm">Aún no hay inscritos.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-2 mt-4">
                 {publicos.map((p, i) => (
                   <li
                     key={p.id}
