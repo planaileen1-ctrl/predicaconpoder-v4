@@ -17,6 +17,11 @@ function generarCodigo5Digitos() {
   return Math.floor(10000 + Math.random() * 90000).toString();
 }
 
+function normalizarWhatsApp(raw: string) {
+  // deja solo dígitos (puedes permitir +, pero guardaremos limpio)
+  return (raw || "").replace(/\D/g, "").slice(0, 15);
+}
+
 type Publico = { id: string; nombreCompleto: string };
 
 export default function InscribirsePage() {
@@ -24,6 +29,7 @@ export default function InscribirsePage() {
 
   const [nombre, setNombre] = useState("");
   const [deseo, setDeseo] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   const [codigoMostrado, setCodigoMostrado] = useState<string | null>(null);
@@ -52,7 +58,9 @@ export default function InscribirsePage() {
       },
       (err: any) => {
         console.error("onSnapshot error:", err);
-        setErrorLista((err?.code || "error") + " - " + (err?.message || "No se pudo leer la lista"));
+        setErrorLista(
+          (err?.code || "error") + " - " + (err?.message || "No se pudo leer la lista")
+        );
       }
     );
 
@@ -62,8 +70,18 @@ export default function InscribirsePage() {
   const handleSubmit = async () => {
     setErrorGuardar(null);
 
-    if (!nombre.trim() || !deseo.trim()) {
-      setErrorGuardar("Completa todos los campos.");
+    const n = nombre.trim();
+    const d = deseo.trim();
+    const w = normalizarWhatsApp(whatsapp);
+
+    if (!n || !d || !w) {
+      setErrorGuardar("Completa nombre, deseo y WhatsApp.");
+      return;
+    }
+
+    // Reglas mínimas para WhatsApp (ej: Ecuador 593 + 9 dígitos -> 12)
+    if (w.length < 9) {
+      setErrorGuardar("WhatsApp inválido. Escribe el número completo (solo números).");
       return;
     }
 
@@ -73,24 +91,28 @@ export default function InscribirsePage() {
 
       // 1) Público: SOLO nombre (para lista)
       await addDoc(collection(db, "intercambio_regalos_public"), {
-        nombreCompleto: nombre.trim(),
+        nombreCompleto: n,
         creadoEn: Timestamp.now(),
       });
 
-      // 2) Privado: nombre + deseo + código (solo admin podrá leer)
+      // 2) Privado: nombre + deseo + whatsapp + código (solo admin podrá leer)
       await addDoc(collection(db, "intercambio_regalos_participantes"), {
-        nombreCompleto: nombre.trim(),
-        deseo: deseo.trim(),
-        codigo,
+        nombreCompleto: n,
+        deseo: d,
+        whatsapp: w,      // ✅ nuevo
+        codigo,           // ✅ secreto
         creadoEn: Timestamp.now(),
       });
 
       setCodigoMostrado(codigo);
       setNombre("");
       setDeseo("");
+      setWhatsapp("");
     } catch (err: any) {
       console.error("addDoc error:", err);
-      setErrorGuardar((err?.code || "error") + " - " + (err?.message || "Error al inscribirse"));
+      setErrorGuardar(
+        (err?.code || "error") + " - " + (err?.message || "Error al inscribirse")
+      );
     } finally {
       setGuardando(false);
     }
@@ -147,6 +169,21 @@ export default function InscribirsePage() {
                     placeholder="Ej: Juan Pérez"
                     className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 outline-none focus:border-pink-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1 text-neutral-300">
+                    WhatsApp (solo números)
+                  </label>
+                  <input
+                    value={whatsapp}
+                    onChange={(e) => setWhatsapp(normalizarWhatsApp(e.target.value))}
+                    placeholder="Ej: 593999123456"
+                    className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 outline-none focus:border-pink-500"
+                  />
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Ejemplo Ecuador: 593 + tu número (sin +).
+                  </p>
                 </div>
 
                 <div>
