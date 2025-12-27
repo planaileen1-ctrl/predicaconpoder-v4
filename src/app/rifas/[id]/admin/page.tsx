@@ -75,14 +75,12 @@ export default function AdminRifaPage() {
 
       const rifaSnap = await getDoc(doc(db, "rifas", id as string));
       if (!rifaSnap.exists()) {
-        alert("Rifa no encontrada");
         router.push("/rifas");
         return;
       }
 
       const data = rifaSnap.data();
       if (data.creadorUid !== user.uid) {
-        alert("Acceso denegado");
         router.push(`/rifas/${id}`);
         return;
       }
@@ -154,16 +152,7 @@ export default function AdminRifaPage() {
     `🎁 Premio: ${rifa.premio}\n` +
     `🔢 Número elegido: *${num}*\n` +
     `💵 Valor: $${PRECIO_RIFA}\n\n` +
-    `📅 *Fecha del sorteo:* 23 de diciembre\n\n` +
     `¡Mucha suerte! 🍀`;
-
-  const mensajeGanador = (num: string) =>
-    `🎉 FELICIDADES 🎉\n\n` +
-    `Has ganado la rifa:\n\n` +
-    `🎟️ ${rifa.titulo}\n` +
-    `🎁 Premio: ${rifa.premio}\n` +
-    `🔢 Número ganador: ${num}\n\n` +
-    `Responde para coordinar la entrega 🙌`;
 
   /* ================= ACCIONES ================= */
   const marcarPagado = async (num: string) => {
@@ -196,6 +185,7 @@ export default function AdminRifaPage() {
     });
   };
 
+  // ✅ SORTEO LIMPIO (SIN ALERT)
   const realizarSorteo = async () => {
     const pagados = Object.entries(numeros).filter(
       ([_, info]) => info.estado === "pagado"
@@ -218,12 +208,6 @@ export default function AdminRifaPage() {
         fecha: Timestamp.now(),
       },
     });
-
-    alert(`🎉 Ganador: ${num}`);
-
-    if (info.telefono) {
-      abrirWhatsApp(info.telefono, mensajeGanador(num));
-    }
   };
 
   const resetearRifa = async () => {
@@ -241,8 +225,6 @@ export default function AdminRifaPage() {
       estado: "activa",
       ganador: null,
     });
-
-    alert("✅ Rifa reseteada");
   };
 
   const badge = (estado: string) =>
@@ -275,9 +257,15 @@ export default function AdminRifaPage() {
 
         {/* ===== BOTONES ===== */}
         <div className="flex flex-wrap gap-3 mt-6">
-          <button onClick={realizarSorteo} className="bg-purple-600 px-5 py-3 rounded-xl font-bold">🎉 Realizar sorteo</button>
-          <button onClick={resetearRifa} className="bg-red-700 px-5 py-3 rounded-xl font-bold">🧹 Resetear rifa</button>
-          <button onClick={cargarNumeros} className="bg-blue-600 px-5 py-3 rounded-xl font-bold">🔄 Refrescar</button>
+          <button onClick={realizarSorteo} className="bg-purple-600 px-5 py-3 rounded-xl font-bold">
+            🎉 Realizar sorteo
+          </button>
+          <button onClick={resetearRifa} className="bg-red-700 px-5 py-3 rounded-xl font-bold">
+            🧹 Resetear rifa
+          </button>
+          <button onClick={cargarNumeros} className="bg-blue-600 px-5 py-3 rounded-xl font-bold">
+            🔄 Refrescar
+          </button>
         </div>
 
         {/* ===== TABLA ===== */}
@@ -323,10 +311,16 @@ export default function AdminRifaPage() {
                         WhatsApp
                       </button>
                     )}
-                    <button onClick={() => marcarPagado(n)} className="px-3 py-1 bg-emerald-600 rounded text-xs">
+                    <button
+                      onClick={() => marcarPagado(n)}
+                      className="px-3 py-1 bg-emerald-600 rounded text-xs"
+                    >
                       Pagado
                     </button>
-                    <button onClick={() => liberarNumero(n)} className="px-3 py-1 bg-red-600 rounded text-xs">
+                    <button
+                      onClick={() => liberarNumero(n)}
+                      className="px-3 py-1 bg-red-600 rounded text-xs"
+                    >
                       Liberar
                     </button>
                   </td>

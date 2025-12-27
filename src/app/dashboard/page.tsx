@@ -6,6 +6,7 @@ import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+/* ================= TIPOS ================= */
 type Section = {
   title: string;
   desc: string;
@@ -14,6 +15,7 @@ type Section = {
   gradient: string;
 };
 
+/* ================= SECCIONES ================= */
 const sections: Section[] = [
   {
     title: "Crear Sermón",
@@ -43,15 +45,13 @@ const sections: Section[] = [
     href: "/archivo",
     gradient: "from-purple-500 to-fuchsia-600",
   },
-     {
+  {
     title: "Mis Lecturas",
     desc: "Devocionales y estudios bíblicos guardados.",
     icon: "📖",
     href: "/lecturas",
     gradient: "from-yellow-500 to-amber-600",
   },
-
-  // ✅ NUEVA TARJETA: BIBLIA
   {
     title: "Biblia",
     desc: "Lee la Biblia completa por libros y capítulos.",
@@ -60,27 +60,27 @@ const sections: Section[] = [
     gradient: "from-red-500 to-orange-600",
   },
   {
-  title: "Ventas de Comida",
-  desc: "Registra clientes, ventas y calcula ganancias.",
-  icon: "🍽️",
-  href: "/ventas-comida",
-  gradient: "from-teal-500 to-cyan-600",
-},
-{
-  title: "Ingresos y Gastos",
-  desc: "Control financiero: registra entradas y salidas.",
-  icon: "💰",
-  href: "/ingresos-gastos",
-  gradient: "from-emerald-500 to-lime-600",
-},
-{
-  title: "Servicio Técnico",
-  desc: "Gestión de reparación de computadoras",
-  icon: "🛠️",
-  href: "/servicio-tecnico/menu",
-  gradient: "from-slate-600 to-zinc-800",
-},
-   {
+    title: "Ventas de Comida",
+    desc: "Registra clientes, ventas y calcula ganancias.",
+    icon: "🍽️",
+    href: "/ventas-comida",
+    gradient: "from-teal-500 to-cyan-600",
+  },
+  {
+    title: "Ingresos y Gastos",
+    desc: "Control financiero: registra entradas y salidas.",
+    icon: "💰",
+    href: "/ingresos-gastos",
+    gradient: "from-emerald-500 to-lime-600",
+  },
+  {
+    title: "Servicio Técnico",
+    desc: "Gestión de reparación de computadoras",
+    icon: "🛠️",
+    href: "/servicio-tecnico/menu",
+    gradient: "from-slate-600 to-zinc-800",
+  },
+  {
     title: "Ajustes",
     desc: "Configura tu cuenta y preferencias.",
     icon: "⚙️",
@@ -95,20 +95,28 @@ const sections: Section[] = [
     gradient: "from-pink-500 to-rose-600",
   },
   {
-  title: "Rifa PRO",
-  desc: "Crea rifas, vende números y gestiona sorteos de forma profesional.",
-  icon: "🎟️",
-  href: "/rifas",
-  gradient: "from-fuchsia-500 to-pink-600",
-},
+    title: "Intercambio de Regalos",
+    desc: "Inscripción de participantes y sorteo automático.",
+    icon: "🎁",
+    href: "/intercambio-regalos",
+    gradient: "from-rose-500 to-pink-600",
+  },
+  {
+    title: "Rifa PRO",
+    desc: "Crea rifas, vende números y gestiona sorteos de forma profesional.",
+    icon: "🎟️",
+    href: "/rifas",
+    gradient: "from-fuchsia-500 to-pink-600",
+  },
 ];
 
+/* ================= COMPONENTE ================= */
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.push("/login");
         return;
@@ -134,31 +142,31 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen text-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center text-white">
         Verificando acceso...
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center px-4 py-10">
-      <div className="w-full max-w-6xl">
+    <main className="min-h-screen bg-neutral-950 text-white px-4 py-10">
+      <div className="w-full max-w-6xl mx-auto">
 
-        <header className="mb-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        {/* Header */}
+        <header className="mb-10 flex flex-col sm:flex-row justify-between gap-4">
           <div>
             <p className="text-sm text-neutral-400">Bienvenido a</p>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-bold">
               Predica <span className="text-indigo-400">Con Poder</span>
             </h1>
             <p className="text-neutral-400 mt-2 max-w-xl text-sm sm:text-base">
-              Crea, organiza y guarda tus sermones, ideas y devocionales desde cualquier dispositivo — optimizado para iPad.
+              Crea, organiza y guarda tus sermones, ideas y devocionales desde cualquier dispositivo.
             </p>
           </div>
 
           <button
             onClick={handleLogout}
-            aria-label="Cerrar sesión"
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition"
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg font-semibold transition"
           >
             Cerrar sesión
           </button>
@@ -170,22 +178,21 @@ export default function DashboardPage() {
             <Link
               key={s.title}
               href={s.href}
-              className="group rounded-3xl bg-neutral-900 border border-neutral-800 overflow-hidden shadow-lg hover:shadow-indigo-500/20 transition transform hover:-translate-y-1"
+              className="group rounded-3xl bg-neutral-900 border border-neutral-800 overflow-hidden shadow-lg hover:shadow-indigo-500/20 transition hover:-translate-y-1"
             >
-              <div
-                className={`bg-gradient-to-r ${s.gradient} p-4 h-28 flex items-center justify-between`}
-              >
+              <div className={`bg-gradient-to-r ${s.gradient} p-4 h-28 flex justify-between`}>
                 <div>
                   <div className="text-3xl mb-1">{s.icon}</div>
                   <h2 className="text-lg font-semibold">{s.title}</h2>
                 </div>
-                <div className="opacity-80 text-5xl group-hover:scale-110 transition-transform">
+                <div className="text-5xl opacity-80 group-hover:scale-110 transition-transform">
                   ✨
                 </div>
               </div>
+
               <div className="p-4">
                 <p className="text-sm text-neutral-300 mb-3">{s.desc}</p>
-                <span className="text-xs font-medium text-indigo-300 group-hover:text-indigo-200">
+                <span className="text-xs text-indigo-300 group-hover:text-indigo-200">
                   Entrar →
                 </span>
               </div>
