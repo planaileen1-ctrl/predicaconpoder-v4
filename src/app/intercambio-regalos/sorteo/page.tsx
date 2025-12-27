@@ -9,7 +9,6 @@ import {
   getDocs,
   doc,
   getDoc,
-  setDoc,
   writeBatch,
   Timestamp,
 } from "firebase/firestore";
@@ -18,8 +17,17 @@ type Participante = {
   id: string;
   nombreCompleto: string;
   deseo: string;
-  codigo: string; // 5 dígitos
+  codigo: string;
 };
+
+function normalizeName(v: string) {
+  return (v || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
 
 function shuffle<T>(arr: T[]) {
   const a = [...arr];
@@ -30,38 +38,70 @@ function shuffle<T>(arr: T[]) {
   return a;
 }
 
+function matchAlias(nombre: string, aliases: string[]) {
+  const n = normalizeName(nombre);
+  return aliases.some((a) => n === normalizeName(a));
+}
+
 /**
- * Derangement simple:
- * - shuffle recipients
- * - si alguien queda asignado a sí mismo, intercambia con el siguiente
- * (funciona bien para n>=2)
+ * RESTRICCIONES:
+ * - Nadie le regala a YUDITH (Yudith NO puede ser "para")
+ * - RAUL LEON no regala a nadie (Raúl NO puede ser "de")
+ * - Yudith sí regala a alguien
+ * - Raúl sí recibe de alguien
  */
-function derangement(givers: Participante[]) {
-  const n = givers.length;
-  let recipients = shuffle(givers);
+function generarAsignacionesConRestricciones(participantes: Participante[]) {
+  const RAUL_ALIASES = ["raul leon"];
+  const YUDITH_ALIASES = ["yudith"];
 
-  if (n <= 1) return recipients;
+  const raulIdx = participantes.findIndex((p) => matchAlias(p.nombreCompleto, RAUL_ALIASES));
+  const yudithIdx = participantes.findIndex((p) => matchAlias(p.nombreCompleto, YUDITH_ALIASES));
 
-  for (let i = 0; i < n; i++) {
-    if (recipients[i].id === givers[i].id) {
-      const j = (i + 1) % n;
-      [recipients[i], recipients[j]] = [recipients[j], recipients[i]];
+  // Si no están, sorteo normal (nadie a sí mismo)
+  if (raulIdx < 0 || yudithIdx < 0) {
+    const givers = participantes;
+    const MAX = 4000;
+    for (let t = 0; t < MAX; t++) {
+      const recipients = shuffle(participantes);
+      const ok = recipients.every((r, i) => r.id !== givers[i].id);
+      if (ok) return { modo: "normal", givers, recipients, raul: null };
     }
+    throw new Error("No se pudo generar sorteo normal.");
   }
 
-  // Verificación final (por seguridad)
-  // Si aún hay auto-asignación (muy raro), rehacer una vez.
-  if (recipients.some((r, i) => r.id === givers[i].id)) {
-    recipients = shuffle(givers);
-    for (let i = 0; i < n; i++) {
-      if (recipients[i].id === givers[i].id) {
-        const j = (i + 1) % n;
-        [recipients[i], recipients[j]] = [recipients[j], recipients[i]];
+  const raul = participantes[raulIdx];
+  const yudith = participantes[yudithIdx];
+
+  // GIVERS: todos menos Raúl (Raúl no regala)
+  const givers = participantes.filter((p) => p.id !== raul.id);
+
+  // RECIPIENTS: todos menos Yudith (nadie le regala a Yudith)
+  const recipientsPool = participantes.filter((p) => p.id !== yudith.id);
+
+  if (givers.length !== recipientsPool.length) {
+    throw new Error("Reglas incompatibles: tamaños no coinciden.");
+  }
+
+  const MAX_TRIES = 9000;
+  for (let t = 0; t < MAX_TRIES; t++) {
+    const recipients = shuffle(recipientsPool);
+
+    // Evitar auto-asignación para quienes están en ambos lados
+    let ok = true;
+    for (let i = 0; i < givers.length; i++) {
+      if (givers[i].id === recipients[i].id) {
+        ok = false;
+        break;
       }
     }
+    if (!ok) continue;
+
+    // Raúl está dentro del recipientsPool, entonces alguien lo recibirá sí o sí.
+    // Yudith NO está, así que nadie le regalará.
+    return { modo: "restricciones", givers, recipients, raul };
   }
 
-  return recipients;
+  throw new Error("No se pudo generar sorteo con restricciones.");
 }
 
 export default function SorteoAdminPage() {
@@ -87,14 +127,12 @@ export default function SorteoAdminPage() {
         }
         setUserOk(true);
 
-        // Estado sorteo
         const estadoRef = doc(db, "intercambio_regalos_estado", "sorteo");
         const estadoSnap = await getDoc(estadoRef);
         if (estadoSnap.exists() && estadoSnap.data()?.locked === true) {
           setSorteoHecho(true);
         }
 
-        // Participantes
         const snap = await getDocs(collection(db, "intercambio_regalos_participantes"));
         const data: Participante[] = snap.docs.map((d) => ({
           id: d.id,
@@ -103,9 +141,8 @@ export default function SorteoAdminPage() {
           codigo: d.data().codigo || "",
         }));
 
-        // filtrar inválidos (por seguridad)
         const limpios = data.filter(
-          (p) => p.nombreCompleto && p.deseo && p.codigo && p.codigo.length === 5
+          (p) => p.nombreCompleto && p.deseo && p.codigo && String(p.codigo).length === 5
         );
 
         setParticipantes(limpios);
@@ -121,60 +158,69 @@ export default function SorteoAdminPage() {
   }, [router, adminEmail]);
 
   const realizarSorteo = async () => {
-    if (sorteoHecho) {
-      alert("El sorteo ya fue realizado.");
-      return;
-    }
-
-    if (participantes.length < 2) {
-      alert("Se necesitan al menos 2 participantes.");
-      return;
-    }
-
-    if (!confirm("¿Confirmas realizar el sorteo? Se guardará y no se debe repetir.")) {
-      return;
-    }
+    if (sorteoHecho) return alert("El sorteo ya fue realizado.");
+    if (participantes.length < 2) return alert("Se necesitan al menos 2 participantes.");
+    if (!confirm("¿Confirmas realizar el sorteo? Se guardará y no se debe repetir.")) return;
 
     setProcesando(true);
     try {
-      const givers = participantes;
-      const recipients = derangement(givers);
+      const res = generarAsignacionesConRestricciones(participantes);
+      const { givers, recipients, raul, modo } = res;
 
       const batch = writeBatch(db);
 
-      // Guardar asignación por CÓDIGO (documento id = codigo del que regala)
+      // Guardar asignación por código del que REGALA (givers)
       for (let i = 0; i < givers.length; i++) {
         const de = givers[i];
         const para = recipients[i];
 
-        const asignRef = doc(db, "intercambio_regalos_asignaciones", de.codigo);
-
+        const asignRef = doc(db, "intercambio_regalos_asignaciones", String(de.codigo));
         batch.set(asignRef, {
-          deCodigo: de.codigo,
+          deCodigo: String(de.codigo),
           deNombre: de.nombreCompleto,
           paraNombre: para.nombreCompleto,
+          // ✅ guardamos deseo pero NO se muestra en la UI
           paraDeseo: para.deseo,
           presupuesto: 5,
           creadoEn: Timestamp.now(),
+          modo,
         });
       }
 
-      // Bloquear sorteo (estado)
+      // Crear doc para Raúl indicando que NO regala
+      if (raul) {
+        const raulRef = doc(db, "intercambio_regalos_asignaciones", String(raul.codigo));
+        batch.set(raulRef, {
+          deCodigo: String(raul.codigo),
+          deNombre: raul.nombreCompleto,
+          noRegala: true,
+          presupuesto: 5,
+          creadoEn: Timestamp.now(),
+          modo,
+        });
+      }
+
       const estadoRef = doc(db, "intercambio_regalos_estado", "sorteo");
       batch.set(estadoRef, {
         locked: true,
         creadoEn: Timestamp.now(),
-        total: givers.length,
+        totalParticipantes: participantes.length,
+        totalRegalan: givers.length,
         presupuesto: 5,
+        modo,
+        restricciones: {
+          nadieLeRegalaA: "Yudith",
+          raulNoRegala: true,
+        },
       });
 
       await batch.commit();
 
       setSorteoHecho(true);
       alert("🎉 Sorteo realizado y guardado.");
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Error realizando el sorteo.");
+      alert(e?.message || "Error realizando el sorteo.");
     } finally {
       setProcesando(false);
     }
@@ -187,7 +233,6 @@ export default function SorteoAdminPage() {
       </div>
     );
   }
-
   if (!userOk) return null;
 
   return (
@@ -209,9 +254,16 @@ export default function SorteoAdminPage() {
           <p className="text-sm text-neutral-300">
             Participantes válidos: <span className="font-semibold">{participantes.length}</span>
           </p>
-          <p className="text-xs text-neutral-500 mt-1">
-            Presupuesto por regalo: $5
-          </p>
+          <p className="text-xs text-neutral-500 mt-1">Presupuesto: $5</p>
+
+          <div className="mt-4 bg-neutral-800 border border-neutral-700 rounded-xl p-3">
+            <p className="text-xs text-neutral-300">Restricciones activas:</p>
+            <ul className="text-xs text-neutral-400 list-disc pl-5 mt-1 space-y-1">
+              <li>Nadie le regala a <b>Yudith</b>.</li>
+              <li><b>RAUL LEON</b> no regala a nadie.</li>
+              <li>Yudith sí regala; Raúl sí recibe.</li>
+            </ul>
+          </div>
         </section>
 
         <section className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">

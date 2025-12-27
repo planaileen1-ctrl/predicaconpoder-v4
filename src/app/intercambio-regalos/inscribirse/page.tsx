@@ -12,70 +12,69 @@ import {
   Timestamp,
 } from "firebase/firestore";
 
-/* ================= HELPERS ================= */
 function generarCodigo5Digitos() {
   return Math.floor(10000 + Math.random() * 90000).toString();
 }
 
-/* ================= TIPOS ================= */
-type Participante = {
-  id: string;
-  nombreCompleto: string;
-};
+type Publico = { id: string; nombreCompleto: string };
 
 export default function InscribirsePage() {
   const router = useRouter();
 
   const [nombre, setNombre] = useState("");
   const [deseo, setDeseo] = useState("");
-  const [inscrito, setInscrito] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const [participantes, setParticipantes] = useState<Participante[]>([]);
 
-  /* ================= LISTA EN TIEMPO REAL ================= */
+  const [codigoMostrado, setCodigoMostrado] = useState<string | null>(null);
+  const [publicos, setPublicos] = useState<Publico[]>([]);
+
+  // ✅ Lista pública SOLO nombres
   useEffect(() => {
     const q = query(
-      collection(db, "intercambio_regalos_participantes"),
+      collection(db, "intercambio_regalos_public"),
       orderBy("creadoEn", "asc")
     );
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const data: Participante[] = snap.docs.map((d) => ({
+        const data = snap.docs.map((d) => ({
           id: d.id,
           nombreCompleto: d.data().nombreCompleto,
         }));
-        setParticipantes(data);
+        setPublicos(data);
       },
-      (err) => {
-        console.error(err);
-      }
+      (err) => console.error(err)
     );
 
     return () => unsub();
   }, []);
 
-  /* ================= GUARDAR ================= */
   const handleSubmit = async () => {
     if (!nombre.trim() || !deseo.trim()) {
       alert("Completa todos los campos.");
       return;
     }
 
+    setGuardando(true);
     try {
-      setGuardando(true);
+      const codigo = generarCodigo5Digitos();
 
-      const codigoGenerado = generarCodigo5Digitos();
-
-      await addDoc(collection(db, "intercambio_regalos_participantes"), {
+      // 1) Público: SOLO nombre (para lista)
+      await addDoc(collection(db, "intercambio_regalos_public"), {
         nombreCompleto: nombre.trim(),
-        deseo: deseo.trim(),
-        codigo: codigoGenerado, // ✅ se guarda aunque NO se muestre
         creadoEn: Timestamp.now(),
       });
 
-      setInscrito(true);
+      // 2) Privado: nombre + deseo + código (solo admin puede leer)
+      await addDoc(collection(db, "intercambio_regalos_participantes"), {
+        nombreCompleto: nombre.trim(),
+        deseo: deseo.trim(),
+        codigo,
+        creadoEn: Timestamp.now(),
+      });
+
+      setCodigoMostrado(codigo);
       setNombre("");
       setDeseo("");
     } catch (err: any) {
@@ -103,65 +102,76 @@ export default function InscribirsePage() {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* FORMULARIO */}
+          {/* FORM */}
           <section className="lg:col-span-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4">
-            <div>
-              <label className="block text-sm mb-1 text-neutral-300">
-                Nombre y apellido
-              </label>
-              <input
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Ej: Juan Pérez"
-                className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 outline-none focus:border-pink-500"
-                disabled={inscrito}
-              />
-            </div>
+            {!codigoMostrado ? (
+              <>
+                <div>
+                  <label className="block text-sm mb-1 text-neutral-300">
+                    Nombre y apellido
+                  </label>
+                  <input
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                    placeholder="Ej: Juan Pérez"
+                    className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 outline-none focus:border-pink-500"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm mb-1 text-neutral-300">
-                ¿Qué te gustaría recibir?
-              </label>
-              <textarea
-                value={deseo}
-                onChange={(e) => setDeseo(e.target.value)}
-                placeholder="Ej: chocolate, taza, cuaderno, dulces..."
-                className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 outline-none focus:border-pink-500 min-h-[90px]"
-                disabled={inscrito}
-              />
-            </div>
+                <div>
+                  <label className="block text-sm mb-1 text-neutral-300">
+                    ¿Qué te gustaría recibir?
+                  </label>
+                  <textarea
+                    value={deseo}
+                    onChange={(e) => setDeseo(e.target.value)}
+                    placeholder="Ej: chocolate, taza, cuaderno..."
+                    className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 outline-none focus:border-pink-500 min-h-[90px]"
+                  />
+                </div>
 
-            {!inscrito ? (
-              <button
-                onClick={handleSubmit}
-                disabled={guardando}
-                className="w-full bg-pink-600 hover:bg-pink-700 py-3 rounded-xl font-bold text-lg transition disabled:opacity-50"
-              >
-                {guardando ? "Guardando..." : "Inscribirme"}
-              </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={guardando}
+                  className="w-full bg-pink-600 hover:bg-pink-700 py-3 rounded-xl font-bold text-lg transition disabled:opacity-50"
+                >
+                  {guardando ? "Guardando..." : "Inscribirme"}
+                </button>
+              </>
             ) : (
-              <div className="bg-neutral-800 border border-neutral-700 rounded-xl p-4 text-center">
-                <p className="text-sm text-neutral-300 mb-1">
-                  ✅ Inscripción exitosa
+              <div className="bg-neutral-800 border border-neutral-700 rounded-xl p-5 text-center">
+                <p className="text-sm text-neutral-300 mb-2">✅ Inscripción exitosa</p>
+                <p className="text-xs text-neutral-400 mb-2">
+                  Este es tu <b>código secreto</b>. Guárdalo.
                 </p>
-                <p className="text-sm text-neutral-400">
-                  Ya estás participando. ¡Gracias!
+                <p className="text-3xl font-bold tracking-widest text-pink-400">
+                  {codigoMostrado}
                 </p>
+                <p className="text-xs text-neutral-500 mt-3">
+                  Con este código podrás ver a quién te toca regalar. No lo compartas.
+                </p>
+
+                <button
+                  onClick={() => setCodigoMostrado(null)}
+                  className="mt-4 text-sm text-indigo-300 hover:text-indigo-200"
+                >
+                  Inscribir a otra persona →
+                </button>
               </div>
             )}
           </section>
 
-          {/* LISTA DE INSCRITOS */}
+          {/* LISTA PÚBLICA */}
           <aside className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
             <h2 className="text-lg font-semibold mb-4">
-              👥 Inscritos ({participantes.length})
+              👥 Inscritos ({publicos.length})
             </h2>
 
-            {participantes.length === 0 ? (
+            {publicos.length === 0 ? (
               <p className="text-neutral-500 text-sm">Aún no hay inscritos.</p>
             ) : (
               <ul className="space-y-2">
-                {participantes.map((p, i) => (
+                {publicos.map((p, i) => (
                   <li
                     key={p.id}
                     className="bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm"

@@ -3,32 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import {
-  collection,
-  query,
-  where,
-  limit,
-  getDocs,
-  doc,
-  getDoc,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
+
+function soloDigitos5(v: string) {
+  return (v || "").replace(/\D/g, "").slice(0, 5);
+}
 
 export default function VerAsignacionPage() {
   const router = useRouter();
 
-  const [nombre, setNombre] = useState("");
+  const [codigo, setCodigo] = useState("");
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState<null | {
-    paraNombre: string;
-    paraDeseo: string;
+    paraNombre?: string;
     presupuesto: number;
+    noRegala?: boolean;
   }>(null);
 
   const buscar = async () => {
-    const n = (nombre || "").trim();
+    const code = soloDigitos5(codigo);
 
-    if (!n) {
-      alert("Ingresa tu nombre y apellido tal como te registraste.");
+    if (code.length !== 5) {
+      alert("Ingresa un código válido de 5 dígitos.");
       return;
     }
 
@@ -36,43 +32,25 @@ export default function VerAsignacionPage() {
     setResultado(null);
 
     try {
-      // 1) Buscar participante por nombreCompleto exacto
-      const q = query(
-        collection(db, "intercambio_regalos_participantes"),
-        where("nombreCompleto", "==", n),
-        limit(1)
-      );
+      const ref = doc(db, "intercambio_regalos_asignaciones", code);
+      const snap = await getDoc(ref);
 
-      const snap = await getDocs(q);
-
-      if (snap.empty) {
-        alert("No encontramos ese nombre. Escríbelo EXACTO como te registraste.");
+      if (!snap.exists()) {
+        alert("Aún no hay resultado. Puede que el sorteo no se haya realizado.");
         return;
       }
 
-      const participante = snap.docs[0].data();
-      const codigo = participante.codigo;
+      const data: any = snap.data();
 
-      if (!codigo || String(codigo).length !== 5) {
-        alert("Este registro no tiene código válido. Vuelve a inscribirte.");
+      // ✅ Caso especial: no regala a nadie (RAUL LEON)
+      if (data?.noRegala === true) {
+        setResultado({ presupuesto: data?.presupuesto || 5, noRegala: true });
         return;
       }
-
-      // 2) Buscar asignación por el código
-      const asignRef = doc(db, "intercambio_regalos_asignaciones", String(codigo));
-      const asignSnap = await getDoc(asignRef);
-
-      if (!asignSnap.exists()) {
-        alert("Aún no hay asignación. Puede que el sorteo no se haya realizado.");
-        return;
-      }
-
-      const data = asignSnap.data();
 
       setResultado({
-        paraNombre: data.paraNombre || "",
-        paraDeseo: data.paraDeseo || "",
-        presupuesto: data.presupuesto || 5,
+        paraNombre: data?.paraNombre || "",
+        presupuesto: data?.presupuesto || 5,
       });
     } catch (e) {
       console.error(e);
@@ -94,19 +72,17 @@ export default function VerAsignacionPage() {
 
         <h1 className="text-3xl font-bold mb-2">🎁 Ver a quién me tocó</h1>
         <p className="text-neutral-400 mb-6">
-          Escribe tu <b>Nombre y Apellido</b> tal como te registraste. No necesitas login.
+          Ingresa tu <b>código secreto</b> de 5 dígitos. No necesitas login.
         </p>
 
         <section className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4">
           <div>
-            <label className="block text-sm mb-1 text-neutral-300">
-              Nombre y Apellido (exacto)
-            </label>
+            <label className="block text-sm mb-1 text-neutral-300">Código (5 dígitos)</label>
             <input
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej: Juan Pérez"
-              className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 outline-none focus:border-pink-500"
+              value={codigo}
+              onChange={(e) => setCodigo(soloDigitos5(e.target.value))}
+              placeholder="Ej: 48392"
+              className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 outline-none focus:border-pink-500 tracking-widest"
             />
           </div>
 
@@ -124,16 +100,20 @@ export default function VerAsignacionPage() {
                 Presupuesto máximo:{" "}
                 <span className="text-pink-300 font-semibold">${resultado.presupuesto}</span>
               </p>
-              <p className="text-lg font-bold">
-                Te toca regalarle a:{" "}
-                <span className="text-emerald-300">{resultado.paraNombre}</span>
-              </p>
-              <p className="text-sm text-neutral-300 mt-2">
-                Le gustaría recibir:{" "}
-                <span className="text-white font-semibold">{resultado.paraDeseo}</span>
-              </p>
+
+              {resultado.noRegala ? (
+                <p className="text-lg font-bold text-amber-300">
+                  Tú no debes regalar a nadie.
+                </p>
+              ) : (
+                <p className="text-lg font-bold">
+                  Te toca regalarle a:{" "}
+                  <span className="text-emerald-300">{resultado.paraNombre}</span>
+                </p>
+              )}
+
               <p className="text-xs text-neutral-500 mt-3">
-                Si hay dos personas con el mismo nombre, luego lo mejoramos con una confirmación.
+                No compartas tu código. Ese código es tu “llave”.
               </p>
             </div>
           )}
