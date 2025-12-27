@@ -23,7 +23,6 @@ type Participante = {
   nombreCompleto: string;
 };
 
-/* ================= COMPONENTE ================= */
 export default function InscribirsePage() {
   const router = useRouter();
 
@@ -40,14 +39,19 @@ export default function InscribirsePage() {
       orderBy("creadoEn", "asc")
     );
 
-    const unsub = onSnapshot(q, (snap) => {
-      // ✅ Solo leemos y mostramos el nombre (nada de código ni deseo)
-      const data: Participante[] = snap.docs.map((d) => ({
-        id: d.id,
-        nombreCompleto: d.data().nombreCompleto,
-      }));
-      setParticipantes(data);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const data: Participante[] = snap.docs.map((d) => ({
+          id: d.id,
+          nombreCompleto: d.data().nombreCompleto,
+        }));
+        setParticipantes(data);
+      },
+      (err) => {
+        console.error(err);
+      }
+    );
 
     return () => unsub();
   }, []);
@@ -64,23 +68,19 @@ export default function InscribirsePage() {
 
       const codigoGenerado = generarCodigo5Digitos();
 
-      // ✅ Guardamos TODO en Firestore (incluye el código), pero NO lo mostramos en UI
       await addDoc(collection(db, "intercambio_regalos_participantes"), {
         nombreCompleto: nombre.trim(),
         deseo: deseo.trim(),
-        codigo: codigoGenerado,
+        codigo: codigoGenerado, // ✅ se guarda aunque NO se muestre
         creadoEn: Timestamp.now(),
       });
 
-      // ✅ Mensaje de éxito sin mostrar código/deseo
       setInscrito(true);
-
-      // Limpieza del form (opcional pero recomendado)
       setNombre("");
       setDeseo("");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Error al inscribirse. Intenta de nuevo.");
+      alert((err?.code || "error") + " - " + (err?.message || "Error al inscribirse"));
     } finally {
       setGuardando(false);
     }
@@ -102,7 +102,6 @@ export default function InscribirsePage() {
           <span className="text-pink-400 font-semibold">$5</span>
         </p>
 
-        {/* GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* FORMULARIO */}
           <section className="lg:col-span-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4">
@@ -147,9 +146,6 @@ export default function InscribirsePage() {
                 </p>
                 <p className="text-sm text-neutral-400">
                   Ya estás participando. ¡Gracias!
-                </p>
-                <p className="text-xs text-neutral-500 mt-2">
-                  (Más adelante te diremos cómo consultar tu asignación.)
                 </p>
               </div>
             )}
