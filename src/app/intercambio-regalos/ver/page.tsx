@@ -16,6 +16,7 @@ export default function VerAsignacionPage() {
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState<null | {
     paraNombre?: string;
+    paraDeseo?: string;
     presupuesto: number;
     noRegala?: boolean;
   }>(null);
@@ -42,14 +43,18 @@ export default function VerAsignacionPage() {
 
       const data: any = snap.data();
 
-      // ✅ Caso especial: no regala a nadie (RAUL LEON)
+      // ✅ Caso especial: este código NO regala a nadie (RAUL LEON)
       if (data?.noRegala === true) {
-        setResultado({ presupuesto: data?.presupuesto || 5, noRegala: true });
+        setResultado({
+          presupuesto: data?.presupuesto || 5,
+          noRegala: true,
+        });
         return;
       }
 
       setResultado({
         paraNombre: data?.paraNombre || "",
+        paraDeseo: data?.paraDeseo || "",
         presupuesto: data?.presupuesto || 5,
       });
     } catch (e) {
@@ -106,10 +111,19 @@ export default function VerAsignacionPage() {
                   Tú no debes regalar a nadie.
                 </p>
               ) : (
-                <p className="text-lg font-bold">
-                  Te toca regalarle a:{" "}
-                  <span className="text-emerald-300">{resultado.paraNombre}</span>
-                </p>
+                <>
+                  <p className="text-lg font-bold">
+                    Te toca regalarle a:{" "}
+                    <span className="text-emerald-300">{resultado.paraNombre}</span>
+                  </p>
+
+                  <p className="text-sm text-neutral-300 mt-3">
+                    Le gustaría recibir:{" "}
+                    <span className="text-white font-semibold">
+                      {resultado.paraDeseo || "—"}
+                    </span>
+                  </p>
+                </>
               )}
 
               <p className="text-xs text-neutral-500 mt-3">
