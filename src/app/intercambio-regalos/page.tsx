@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 
 type Section = {
@@ -39,8 +38,6 @@ const sections: Section[] = [
     gradient: "from-indigo-500 to-purple-600",
     adminOnly: true,
   },
-
-  // ✅ NUEVA TARJETA (SOLO ADMIN): PARTICIPANTES + BOTÓN WHATSAPP
   {
     title: "Admin Participantes",
     desc: "Ver WhatsApp + deseo + código y enviar mensaje por WhatsApp.",
@@ -60,14 +57,9 @@ export default function IntercambioRegalosMenuPage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      // Si no hay login, igual dejamos usar "Inscribirse" y "Ver a quién me tocó"
-      // pero las opciones admin solo se muestran si está logueado y es admin.
-      if (user?.email === adminEmail) setIsAdmin(true);
-      else setIsAdmin(false);
-
+      setIsAdmin(!!user && user.email === adminEmail);
       setLoading(false);
     });
-
     return () => unsub();
   }, [adminEmail]);
 
@@ -79,7 +71,8 @@ export default function IntercambioRegalosMenuPage() {
     );
   }
 
-  const visibles = sections.filter((s) => !s.adminOnly || isAdmin);
+  // ✅ aquí se filtra: adminOnly SOLO si isAdmin
+  const visibles = sections.filter((s) => (s.adminOnly ? isAdmin : true));
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center px-4 py-10">
@@ -123,23 +116,10 @@ export default function IntercambioRegalosMenuPage() {
                 <span className="text-xs font-medium text-indigo-300 group-hover:text-indigo-200">
                   Entrar →
                 </span>
-
-                {s.adminOnly && !isAdmin && (
-                  <p className="text-xs text-neutral-500 mt-2">
-                    Solo administrador.
-                  </p>
-                )}
               </div>
             </Link>
           ))}
         </section>
-
-        {!isAdmin && (
-          <p className="text-xs text-neutral-500 mt-8">
-            Nota: Las opciones de administrador solo aparecen cuando inicias sesión con{" "}
-            <span className="text-neutral-300 font-semibold">{adminEmail}</span>.
-          </p>
-        )}
       </div>
     </main>
   );

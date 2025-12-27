@@ -12,7 +12,6 @@ type P = {
   deseo: string;
   whatsapp: string;
   codigo: string;
-  creadoEn: any;
 };
 
 function waLink(numero: string, texto: string) {
@@ -24,12 +23,13 @@ function waLink(numero: string, texto: string) {
 export default function AdminParticipantesPage() {
   const router = useRouter();
   const adminEmail = useMemo(() => "planaileen@gmail.com", []);
+
   const [loading, setLoading] = useState(true);
-  const [userOk, setUserOk] = useState(false);
   const [items, setItems] = useState<P[]>([]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
+      // ✅ BLOQUEO TOTAL: si no es admin, fuera
       if (!user) {
         router.push("/login");
         return;
@@ -38,7 +38,6 @@ export default function AdminParticipantesPage() {
         router.push("/intercambio-regalos");
         return;
       }
-      setUserOk(true);
 
       try {
         const q = query(
@@ -46,14 +45,15 @@ export default function AdminParticipantesPage() {
           orderBy("creadoEn", "asc")
         );
         const snap = await getDocs(q);
+
         const data: P[] = snap.docs.map((d) => ({
           id: d.id,
           nombreCompleto: d.data().nombreCompleto || "",
           deseo: d.data().deseo || "",
           whatsapp: d.data().whatsapp || "",
           codigo: d.data().codigo || "",
-          creadoEn: d.data().creadoEn || null,
         }));
+
         setItems(data);
       } catch (e) {
         console.error(e);
@@ -73,7 +73,6 @@ export default function AdminParticipantesPage() {
       </div>
     );
   }
-  if (!userOk) return null;
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white px-4 py-10">
@@ -87,7 +86,7 @@ export default function AdminParticipantesPage() {
 
         <h1 className="text-3xl font-bold mb-2">👑 Admin: Participantes</h1>
         <p className="text-neutral-400 mb-6">
-          Aquí ves WhatsApp + deseo + código (solo admin).
+          Solo tú puedes ver esto.
         </p>
 
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4">
@@ -151,7 +150,9 @@ Guarda este código. Con él verás a quién te toca regalar.`;
           })}
 
           {items.length === 0 && (
-            <p className="text-neutral-500 text-sm mt-6">Aún no hay participantes.</p>
+            <p className="text-neutral-500 text-sm mt-6">
+              Aún no hay participantes.
+            </p>
           )}
         </div>
       </div>
