@@ -59,12 +59,20 @@ const sections: Section[] = [
     href: "/biblia",
     gradient: "from-red-500 to-orange-600",
   },
+  
   {
-    title: "Ventas de Comida",
-    desc: "Registra clientes, ventas y calcula ganancias.",
-    icon: "🍽️",
-    href: "/ventas-comida",
-    gradient: "from-teal-500 to-cyan-600",
+    title: "Ingresos y Gastos",
+    desc: "Control financiero: registra entradas y salidas.",
+    icon: "💰",
+    href: "/ingresos-gastos",
+    gradient: "from-emerald-500 to-lime-600",
+  },
+  {
+    title: "Servicio Técnico",
+    desc: "Gestión de reparación de computadoras",
+    icon: "🛠️",
+    href: "/servicio-tecnico/menu",
+    gradient: "from-slate-600 to-zinc-800",
   },
   {
     title: "Ingresos y Gastos",
@@ -93,13 +101,6 @@ const sections: Section[] = [
     icon: "🌸",
     href: "/plan-aileen-admin",
     gradient: "from-pink-500 to-rose-600",
-  },
-  {
-    title: "Intercambio de Regalos",
-    desc: "Inscripción de participantes y sorteo automático.",
-    icon: "🎁",
-    href: "/intercambio-regalos",
-    gradient: "from-rose-500 to-pink-600",
   },
   {
     title: "Rifa PRO",
