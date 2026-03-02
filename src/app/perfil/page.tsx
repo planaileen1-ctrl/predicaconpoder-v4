@@ -21,12 +21,6 @@ export default function PerfilPage() {
         return;
       }
 
-      // Si es ADMIN → lo mandamos al dashboard
-      if (user.email === "planaileen@gmail.com") {
-        router.push("/dashboard");
-        return;
-      }
-
       // Revisar si tiene documento existente en Firestore
       const ref = doc(db, "usuarios", user.uid);
       const snap = await getDoc(ref);
@@ -34,9 +28,9 @@ export default function PerfilPage() {
       if (snap.exists()) {
         const data = snap.data();
 
-        // Si YA TIENE nombre y sexo → directo al calendario
+        // Si YA TIENE nombre y sexo → directo al dashboard
         if (data.nombre && data.sexo) {
-          router.push("/aileen");
+          router.push("/dashboard");
           return;
         }
       }
@@ -69,7 +63,7 @@ export default function PerfilPage() {
       createdAt: Timestamp.now(),
     });
 
-    router.push("/aileen");
+    router.push("/dashboard");
   };
 
   if (loading) {

@@ -66,13 +66,6 @@ const sections: Section[] = [
     href: "/ajustes",
     gradient: "from-slate-600 to-slate-800",
   },
-  {
-    title: "Plan Aileen",
-    desc: "El plan de 30 días para tu hija",
-    icon: "🌸",
-    href: "/plan-aileen-admin",
-    gradient: "from-pink-500 to-rose-600",
-  },
 ];
 
 /* ================= COMPONENTE ================= */
@@ -84,13 +77,6 @@ export default function DashboardPage() {
     const unsub = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.push("/login");
-        return;
-      }
-
-      const adminEmail = "planaileen@gmail.com";
-
-      if (user.email !== adminEmail) {
-        router.push("/aileen");
         return;
       }
 
