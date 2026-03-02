@@ -35,7 +35,9 @@ export default function EscuelaSabaticaPage() {
         const regex = /(Domingo|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado)\s+\d{1,2}\s+de\s+[a-zA-Z]+/gi;
         const diasEncontrados = textoCompleto.match(regex) || [];
         // Buscar el día que coincide con hoy
-        const encontrado = Array.isArray(diasEncontrados) ? diasEncontrados.find(d => typeof d === 'string' && d.toLowerCase() === texto.toLowerCase()) : undefined;
+        const encontrado = Array.isArray(diasEncontrados)
+          ? diasEncontrados.find(d => typeof d === 'string' && d.toLowerCase() === texto.toLowerCase())
+          : undefined;
         setDia(encontrado || `No se encontró el día de hoy (${texto}) en el PDF`);
         setPdfError("");
       } catch {
