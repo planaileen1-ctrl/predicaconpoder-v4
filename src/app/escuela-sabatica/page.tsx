@@ -1,7 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist/build/pdf";
-import "pdfjs-dist/build/pdf.worker.entry";
 
 function getDiaHoy() {
   const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -17,36 +15,30 @@ function getDiaHoy() {
 export default function EscuelaSabaticaPage() {
   const { nombre, texto } = getDiaHoy();
   const pdfUrl = `/escuela-sabatica/${nombre}`;
-  const [dia, setDia] = useState<string>("");
-  const [pdfError, setPdfError] = useState<string>("");
+  const [diaExtraido, setDiaExtraido] = useState<string>("");
+  const [apiError, setApiError] = useState<string>("");
 
   useEffect(() => {
-    async function extractDayFromPDF() {
+    async function fetchDia() {
       try {
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
-        const pdf = await loadingTask.promise;
-        let textoCompleto = "";
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          textoCompleto += textContent.items.map((item: any) => item.str).join(" ") + " ";
+        const res = await fetch(`/api/dia-escuela-sabatica?nombre=${encodeURIComponent(nombre)}`);
+        const data = await res.json();
+        if (data.dias && Array.isArray(data.dias) && data.dias.length > 0) {
+          // Buscar el día que coincide con hoy
+          const encontrado = data.dias.find((d: string) => d.toLowerCase() === texto.toLowerCase());
+          setDiaExtraido(encontrado || `No se encontró el día de hoy (${texto}) en el PDF`);
+          setApiError("");
+        } else {
+          setDiaExtraido("");
+          setApiError(`No se encontró el día de hoy (${texto}) en el PDF`);
         }
-        // Buscar todos los días en el texto
-        const regex = /(Domingo|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado)\s+\d{1,2}\s+de\s+[a-zA-Z]+/gi;
-        const diasEncontrados = textoCompleto.match(regex) || [];
-        // Buscar el día que coincide con hoy
-        const encontrado = Array.isArray(diasEncontrados)
-          ? diasEncontrados.find(d => typeof d === 'string' && typeof texto === 'string' && d.toLowerCase() === texto.toLowerCase())
-          : undefined;
-        setDia(encontrado || `No se encontró el día de hoy (${texto}) en el PDF`);
-        setPdfError("");
       } catch {
-        setDia("");
-        setPdfError(`No se encontró el archivo PDF para hoy (${nombre})`);
+        setDiaExtraido("");
+        setApiError(`No se encontró el archivo PDF para hoy (${nombre})`);
       }
     }
-    extractDayFromPDF();
-  }, [pdfUrl, nombre, texto]);
+    fetchDia();
+  }, [nombre, texto]);
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex">
@@ -54,7 +46,7 @@ export default function EscuelaSabaticaPage() {
         <h1 className="text-3xl font-bold mb-2 text-cyan-400">Escuela Sabática</h1>
         <div className="mb-6">
           <span className="block text-xl font-bold text-cyan-300 mb-1">Lección de hoy</span>
-          <span className="text-lg text-white font-bold">{dia || pdfError}</span>
+          <span className="text-lg text-white font-bold">{diaExtraido || apiError || texto}</span>
           <span className="block text-neutral-400 mt-1">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
         </div>
       </aside>
