@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import app from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+const auth = getAuth(app);
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
