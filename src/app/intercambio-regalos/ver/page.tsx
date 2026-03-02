@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
+import app from "@/lib/firebase";
+import { getFirestore } from "firebase/firestore";
+const db = getFirestore(app);
 import { doc, getDoc } from "firebase/firestore";
 
 function soloDigitos5(v: string) {

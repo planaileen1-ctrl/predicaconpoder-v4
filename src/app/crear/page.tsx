@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { auth, db } from "@/lib/firebase";
+import app from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+const auth = getAuth(app);
+const db = getFirestore(app);
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import EditorSimple from "@/components/EditorSimple";

@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
+import app from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+const auth = getAuth(app);
+const db = getFirestore(app);
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 
 type P = {

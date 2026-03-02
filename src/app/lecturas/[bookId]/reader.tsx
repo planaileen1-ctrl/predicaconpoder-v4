@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
+import app from "@/lib/firebase";
+import { getFirestore } from "firebase/firestore";
+const db = getFirestore(app);
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import dynamic from "next/dynamic";
 

@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
+import app from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+const auth = getAuth(app);
+const db = getFirestore(app);
 import { collection, query, where, getDocs } from "firebase/firestore";
 import Link from "next/link";
 

@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
+import app from "@/lib/firebase";
+import { getFirestore } from "firebase/firestore";
+const db = getFirestore(app);
 import {
   collection,
   addDoc,

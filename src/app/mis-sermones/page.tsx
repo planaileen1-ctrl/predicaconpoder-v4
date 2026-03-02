@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebase";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import app from "@/lib/firebase";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
+const auth = getAuth(app);
+const db = getFirestore(app);
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 

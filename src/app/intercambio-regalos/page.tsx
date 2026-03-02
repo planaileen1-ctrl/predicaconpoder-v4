@@ -3,7 +3,9 @@
 import { useMemo, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import app from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+const auth = getAuth(app);
 import Link from "next/link";
 
 type Section = {
