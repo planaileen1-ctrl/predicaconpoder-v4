@@ -7,6 +7,15 @@ import bible from "@/data/bible.json";
 export default function LibroPage() {
   const params = useParams();
 
+  if (!params || typeof params !== 'object' || !('book' in params)) {
+    return (
+      <main className="min-h-screen bg-neutral-950 text-white p-6">
+        <h1 className="text-2xl font-bold mb-4 text-red-400">Error: Parámetro de libro inválido</h1>
+        <p>No se pudo obtener el libro.</p>
+      </main>
+    );
+  }
+
   // 🔥 Convertir a string siempre para evitar arrays
   const book = Array.isArray(params.book) ? params.book[0] : params.book;
 
