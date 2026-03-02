@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { auth } from "@/lib/firebase";
+import app from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+const auth = getAuth(app);
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
