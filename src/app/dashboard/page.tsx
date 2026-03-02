@@ -60,21 +60,6 @@ const sections: Section[] = [
     gradient: "from-red-500 to-orange-600",
   },
   {
-    title: "Ingresos y Gastos",
-    desc: "Control financiero: registra entradas y salidas.",
-    icon: "💰",
-    href: "/ingresos-gastos",
-    gradient: "from-emerald-500 to-lime-600",
-  },
-  
-  {
-    title: "Servicio Técnico",
-    desc: "Gestión de reparación de computadoras",
-    icon: "🛠️",
-    href: "/servicio-tecnico/menu",
-    gradient: "from-slate-600 to-zinc-800",
-  },
-  {
     title: "Ajustes",
     desc: "Configura tu cuenta y preferencias.",
     icon: "⚙️",
@@ -87,13 +72,6 @@ const sections: Section[] = [
     icon: "🌸",
     href: "/plan-aileen-admin",
     gradient: "from-pink-500 to-rose-600",
-  },
-  {
-    title: "Rifa PRO",
-    desc: "Crea rifas, vende números y gestiona sorteos de forma profesional.",
-    icon: "🎟️",
-    href: "/rifas",
-    gradient: "from-fuchsia-500 to-pink-600",
   },
 ];
 
@@ -167,7 +145,7 @@ export default function DashboardPage() {
               href={s.href}
               className="group rounded-3xl bg-neutral-900 border border-neutral-800 overflow-hidden shadow-lg hover:shadow-indigo-500/20 transition hover:-translate-y-1"
             >
-              <div className={`bg-gradient-to-r ${s.gradient} p-4 h-28 flex justify-between`}>
+              <div className={`bg-linear-to-r ${s.gradient} p-4 h-28 flex justify-between`}>
                 <div>
                   <div className="text-3xl mb-1">{s.icon}</div>
                   <h2 className="text-lg font-semibold">{s.title}</h2>
