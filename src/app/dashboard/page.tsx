@@ -62,6 +62,13 @@ const sections: Section[] = [
     gradient: "from-red-500 to-orange-600",
   },
   {
+    title: "Escuela Sabática",
+    desc: "Estudio de la Biblia y recursos para clases.",
+    icon: "📖",
+    href: "/escuela-sabatica",
+    gradient: "from-cyan-500 to-blue-600",
+  },
+  {
     title: "Ajustes",
     desc: "Configura tu cuenta y preferencias.",
     icon: "⚙️",
