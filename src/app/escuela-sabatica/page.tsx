@@ -36,7 +36,7 @@ export default function EscuelaSabaticaPage() {
         const diasEncontrados = textoCompleto.match(regex) || [];
         // Buscar el día que coincide con hoy
         const encontrado = Array.isArray(diasEncontrados)
-          ? diasEncontrados.find(d => typeof d === 'string' && d.toLowerCase() === texto.toLowerCase())
+          ? diasEncontrados.find(d => typeof d === 'string' && typeof texto === 'string' && d.toLowerCase() === texto.toLowerCase())
           : undefined;
         setDia(encontrado || `No se encontró el día de hoy (${texto}) en el PDF`);
         setPdfError("");
@@ -50,27 +50,30 @@ export default function EscuelaSabaticaPage() {
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex">
-      <aside className="w-full max-w-md bg-neutral-900 p-8 border-r border-neutral-800 flex flex-col gap-6 items-start">
+      <aside className="w-full max-w-xs bg-neutral-900 p-8 border-r border-neutral-800 flex flex-col gap-6 items-start">
         <h1 className="text-3xl font-bold mb-2 text-cyan-400">Escuela Sabática</h1>
         <div className="mb-6">
           <span className="block text-xl font-bold text-cyan-300 mb-1">Lección de hoy</span>
           <span className="text-lg text-white font-bold">{dia || pdfError}</span>
           <span className="block text-neutral-400 mt-1">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
         </div>
-        <p className="text-neutral-300 mb-2">Aquí podrás organizar y acceder a recursos para tus clases bíblicas.</p>
-        <p className="text-neutral-400 mb-6">Próximamente podrás agregar materiales, planificar clases y compartir ideas.</p>
       </aside>
-      <section className="flex-1 flex items-center justify-center bg-neutral-950">
-        {pdfError ? (
-          <div className="text-neutral-400 text-lg">{pdfError}</div>
-        ) : (
+      <section className="flex-1 flex items-center justify-center bg-neutral-950 gap-6">
+        <iframe
+          src={pdfUrl}
+          title="PDF Viewer"
+          style={{ width: 'auto', height: 'auto', minWidth: '600px', minHeight: '90vh', maxWidth: '100%', maxHeight: '100%', background: 'white', boxShadow: '0 0 24px #0004', borderRadius: '1rem' }}
+          className="border-0"
+        />
+        <div className="w-[300px]">
+          <span className="block text-base font-semibold text-cyan-400 mb-2">Preguntas del Sábado</span>
           <iframe
-            src={pdfUrl}
-            title="PDF Viewer"
-            style={{ width: 'auto', height: 'auto', minWidth: '600px', minHeight: '90vh', maxWidth: '100%', maxHeight: '100%', background: 'white', boxShadow: '0 0 24px #0004', borderRadius: '1rem' }}
+            src="/escuela-sabatica/preguntas-sabado-07-2026.pdf"
+            title="Preguntas Sábado"
+            style={{ width: '100%', height: '350px', background: 'white', borderRadius: '0.5rem', boxShadow: '0 0 12px #0002' }}
             className="border-0"
           />
-        )}
+        </div>
       </section>
     </main>
   );
