@@ -50,21 +50,26 @@ export default function EscuelaSabaticaPage() {
         </div>
         <span className="block text-neutral-400 text-sm md:text-base">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
       </header>
-      <section className="flex-1 flex flex-col md:flex-row items-center justify-center bg-neutral-950 gap-6 p-4">
-        <div className="flex flex-col items-center w-full md:w-2/3">
+      <section className="flex-1 flex flex-col md:flex-row bg-neutral-950 gap-4 md:gap-0 p-4 h-[calc(100vh-100px)]">
+        {/* Lado izquierdo: Preguntas (solo mitad arriba) */}
+        <div className="w-full md:w-1/2 flex flex-col h-full">
+          <div className="flex-1 flex flex-col items-center justify-start" style={{ maxHeight: '50%' }}>
+            <span className="block text-base font-semibold text-cyan-400 mb-2">Preguntas del Sábado</span>
+            <iframe
+              src="/escuela-sabatica/preguntas-sabado-07-2026.pdf"
+              title="Preguntas Sábado"
+              style={{ width: '100%', height: '100%', minHeight: '200px', maxHeight: '350px', background: 'white', borderRadius: '0.5rem', boxShadow: '0 0 12px #0002' }}
+              className="border-0"
+            />
+          </div>
+          <div className="flex-1"></div>
+        </div>
+        {/* Lado derecho: Lección (ocupa toda la altura) */}
+        <div className="w-full md:w-1/2 flex items-center justify-center h-full">
           <iframe
             src={pdfUrl}
             title="PDF Viewer"
-            style={{ width: '100%', maxWidth: '700px', height: '70vh', minHeight: '400px', background: 'white', boxShadow: '0 0 24px #0004', borderRadius: '1rem' }}
-            className="border-0"
-          />
-        </div>
-        <div className="flex flex-col items-center w-full md:w-1/3">
-          <span className="block text-base font-semibold text-cyan-400 mb-2">Preguntas del Sábado</span>
-          <iframe
-            src="/escuela-sabatica/preguntas-sabado-07-2026.pdf"
-            title="Preguntas Sábado"
-            style={{ width: '100%', height: '70vh', minHeight: '400px', background: 'white', borderRadius: '0.5rem', boxShadow: '0 0 12px #0002' }}
+            style={{ width: '100%', height: '100%', minHeight: '400px', background: 'white', boxShadow: '0 0 24px #0004', borderRadius: '1rem' }}
             className="border-0"
           />
         </div>
