@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import app from "@/lib/firebase";
-import { getFirestore } from "firebase/firestore";
-const db = getFirestore(app);
-import { doc, getDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
+const db = getFirestore(app);
+
 export default function VerSermonPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams();
+  const id = params?.id as string | undefined;
+
   const [sermon, setSermon] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,10 +43,7 @@ export default function VerSermonPage() {
 
   return (
     <main className="min-h-screen bg-black text-white p-6">
-      <Link
-        href="/mis-sermones"
-        className="text-blue-400"
-      >
+      <Link href="/mis-sermones" className="text-blue-400">
         ← Volver
       </Link>
 

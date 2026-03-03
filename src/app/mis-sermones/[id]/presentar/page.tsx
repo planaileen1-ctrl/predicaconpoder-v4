@@ -8,7 +8,8 @@ import { doc, getDoc } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 
 export default function PresentarSermon() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string | undefined;
   const router = useRouter();
 
   const [sermon, setSermon] = useState<any>(null);
