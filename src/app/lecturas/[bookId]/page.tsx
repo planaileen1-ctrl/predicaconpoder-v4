@@ -6,6 +6,11 @@ import LecturaReader from "./reader";
 export default function LecturaDetailPage() {
   // Tomamos el bookId desde la URL en el CLIENTE
   const params = useParams<{ bookId: string }>();
+
+  if (!params || typeof params !== 'object' || !('bookId' in params)) {
+    return <p className="text-white p-6">Libro no encontrado.</p>;
+  }
+
   const bookId = params.bookId;
 
   // Si por alguna razón no hay id válido
