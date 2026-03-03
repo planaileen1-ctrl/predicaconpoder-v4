@@ -41,28 +41,30 @@ export default function EscuelaSabaticaPage() {
   }, [nombre, texto]);
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white flex flex-col md:flex-row">
-      <aside className="w-full md:max-w-xs bg-neutral-900 p-4 md:p-8 border-b md:border-b-0 md:border-r border-neutral-800 flex flex-col gap-6 items-start">
-        <h1 className="text-2xl md:text-3xl font-bold mb-2 text-cyan-400">Escuela Sabática</h1>
-        <div className="mb-4 md:mb-6">
-          <span className="block text-lg md:text-xl font-bold text-cyan-300 mb-1">Lección de hoy</span>
+    <main className="min-h-screen bg-neutral-950 text-white flex flex-col">
+      <header className="w-full bg-neutral-900 p-4 md:p-6 border-b border-neutral-800 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-cyan-400">Escuela Sabática</h1>
+          <span className="block text-lg md:text-xl font-bold text-cyan-300">Lección de hoy</span>
           <span className="text-base md:text-lg text-white font-bold">{diaExtraido || apiError || texto}</span>
-          <span className="block text-neutral-400 mt-1">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
         </div>
-      </aside>
-      <section className="flex-1 flex flex-col md:flex-row items-center justify-center bg-neutral-950 gap-4 md:gap-6 p-2 md:p-0">
-        <iframe
-          src={pdfUrl}
-          title="PDF Viewer"
-          style={{ width: '100%', maxWidth: '700px', height: '70vh', minHeight: '400px', background: 'white', boxShadow: '0 0 24px #0004', borderRadius: '1rem' }}
-          className="border-0 mb-4 md:mb-0"
-        />
-        <div className="w-full max-w-xs md:w-[300px]">
+        <span className="block text-neutral-400 text-sm md:text-base">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+      </header>
+      <section className="flex-1 flex flex-col md:flex-row items-center justify-center bg-neutral-950 gap-6 p-4">
+        <div className="flex flex-col items-center w-full md:w-2/3">
+          <iframe
+            src={pdfUrl}
+            title="PDF Viewer"
+            style={{ width: '100%', maxWidth: '700px', height: '70vh', minHeight: '400px', background: 'white', boxShadow: '0 0 24px #0004', borderRadius: '1rem' }}
+            className="border-0"
+          />
+        </div>
+        <div className="flex flex-col items-center w-full md:w-1/3">
           <span className="block text-base font-semibold text-cyan-400 mb-2">Preguntas del Sábado</span>
           <iframe
             src="/escuela-sabatica/preguntas-sabado-07-2026.pdf"
             title="Preguntas Sábado"
-            style={{ width: '100%', height: '350px', background: 'white', borderRadius: '0.5rem', boxShadow: '0 0 12px #0002' }}
+            style={{ width: '100%', height: '70vh', minHeight: '400px', background: 'white', borderRadius: '0.5rem', boxShadow: '0 0 12px #0002' }}
             className="border-0"
           />
         </div>
